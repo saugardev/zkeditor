@@ -10,13 +10,14 @@
 //! RUST_LOG=info cargo run --release -- --prove
 //! ```
 
-use alloy_sol_types::SolType;
 use clap::Parser;
-use fibonacci_lib::PublicValuesStruct;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
+use img_editor_lib::{ImageInput, ImageOutput, Transformation};
+use std::fs;
+use bincode;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
-pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
+pub const IMG_EDITOR_ELF: &[u8] = include_elf!("img-editor-program");
 
 /// The arguments for the command.
 #[derive(Parser, Debug)]
@@ -40,6 +41,9 @@ fn main() {
     // Parse the command line arguments.
     let args = Args::parse();
 
+    // Read the image file
+    let image_data = fs::read("src/bear.jpg").expect("Failed to read image file");
+
     if args.execute == args.prove {
         eprintln!("Error: You must specify either --execute or --prove");
         std::process::exit(1);
@@ -48,34 +52,31 @@ fn main() {
     // Setup the prover client.
     let client = ProverClient::from_env();
 
-    // Setup the inputs.
+    // Create input with rotate90 transformation
+    let input = ImageInput {
+        image_data,
+        transformations: vec![Transformation::Rotate90],
+    };
+
+    // Setup stdin with serialized input
     let mut stdin = SP1Stdin::new();
-    stdin.write(&args.n);
+    stdin.write(&input);
 
     println!("n: {}", args.n);
 
     if args.execute {
         // Execute the program
-        let (output, report) = client.execute(FIBONACCI_ELF, &stdin).run().unwrap();
+        let (output, _) = client.execute(IMG_EDITOR_ELF, &stdin).run().unwrap();
         println!("Program executed successfully.");
+        // Deserialize output
+        let ImageOutput { final_image, .. } = bincode::deserialize(output.as_slice()).unwrap();
 
-        // Read the output.
-        let decoded = PublicValuesStruct::abi_decode(output.as_slice(), true).unwrap();
-        let PublicValuesStruct { n, a, b } = decoded;
-        println!("n: {}", n);
-        println!("a: {}", a);
-        println!("b: {}", b);
-
-        let (expected_a, expected_b) = fibonacci_lib::fibonacci(n);
-        assert_eq!(a, expected_a);
-        assert_eq!(b, expected_b);
-        println!("Values are correct!");
-
-        // Record the number of cycles executed.
-        println!("Number of cycles: {}", report.total_instruction_count());
+        // Write rotated image
+        fs::write("src/bear_rotated.jpg", final_image).expect("Failed to write output image");
+        println!("Image rotated and saved as bear_rotated.jpg");
     } else {
         // Setup the program for proving.
-        let (pk, vk) = client.setup(FIBONACCI_ELF);
+        let (pk, vk) = client.setup(IMG_EDITOR_ELF);
 
         // Generate the proof
         let proof = client

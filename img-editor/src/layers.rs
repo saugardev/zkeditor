@@ -1,21 +1,36 @@
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
+use serde::{Serialize, Deserialize};
 use crate::Transformation;
 use ab_glyph::{Font, FontArc, PxScale, Point};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Layer {
+    #[serde(skip)]
     pub image: DynamicImage,
+    #[serde(with = "serde_bytes")]
+    image_data: Vec<u8>,
 }
 
 impl Layer {
     pub fn new(image_data: &[u8]) -> Result<Layer, String> {
         let img = image::load_from_memory(image_data)
             .map_err(|e| format!("Failed to load image: {}", e))?;
-        Ok(Layer { image: img })
+        Ok(Layer { 
+            image: img,
+            image_data: image_data.to_vec(),
+        })
     }
 
     pub fn new_empty(width: u32, height: u32) -> Result<Self, String> {
         let image = DynamicImage::ImageRgba8(RgbaImage::new(width, height));
-        Ok(Layer { image })
+        let mut bytes = Vec::new();
+        image.write_to(&mut std::io::Cursor::new(&mut bytes), ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode empty image: {}", e))?;
+        
+        Ok(Layer { 
+            image,
+            image_data: bytes,
+        })
     }
 
     pub fn apply_transformation(&mut self, transformation: Transformation) -> Result<(), String> {

@@ -10,7 +10,7 @@ sp1_zkvm::entrypoint!(main);
 
 use img_editor_lib::{ImageInput, ImageOutput, Layer};
 use sp1_zkvm::io;
-
+use image;
 pub fn main() {
     // Read input data and transformations
     let input: ImageInput = io::read();
@@ -20,7 +20,7 @@ pub fn main() {
         .expect("Failed to create layer");
     
     // Apply all transformations
-    for transformation in input.transformations {
+    for transformation in input.transformations.clone() {
         layer.apply_transformation(transformation)
             .expect("Failed to apply transformation");
     }
