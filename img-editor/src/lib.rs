@@ -35,6 +35,15 @@ pub struct ContrastParameters {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct TextOverlayParameters {
+    pub text: String,
+    pub x: u32,
+    pub y: u32,
+    pub size: u32,
+    pub color: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Transformation {
     Crop(CropParameters),
     Grayscale,
@@ -46,6 +55,7 @@ pub enum Transformation {
     Brighten(BrightenParameters),
     Contrast(ContrastParameters),
     Blur(BlurParameters),    
+    TextOverlay(TextOverlayParameters),
 }
 
 
@@ -91,5 +101,13 @@ impl ImageProject {
         
         layer.to_bytes(format, None)
             .map_err(|e| JsValue::from_str(&e))
+    }
+
+    #[wasm_bindgen]
+    pub fn add_empty_layer(&mut self, width: u32, height: u32) -> Result<(), JsValue> {
+        let empty_layer = Layer::new_empty(width, height)
+            .map_err(|e| JsValue::from_str(&e))?;
+        self.layers.push(empty_layer);
+        Ok(())
     }
 }

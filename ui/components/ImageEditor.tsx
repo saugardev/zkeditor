@@ -3,6 +3,7 @@
 import { useImageEditor } from '@/hooks/useImageEditor';
 import Image from 'next/image';
 import { useState } from 'react';
+import { TextOverlayControls } from './TextOverlayControls';
 
 export default function ImageEditor() {
   const { loadImage, applyTransformation, exportImage } = useImageEditor();
@@ -43,6 +44,19 @@ export default function ImageEditor() {
     if (newUrl) setImageUrl(newUrl);
   };
 
+  const handleTextOverlay = async (params: {
+    TextOverlay: {
+      text: string;
+      x: number;
+      y: number;
+      size: number;
+      color: string;
+    }
+  }) => {
+    const newUrl = await applyTransformation(params);
+    if (newUrl) setImageUrl(newUrl);
+  };
+
   const handleExport = async () => {
     const url = await exportImage(selectedFormat);
     if (url) {
@@ -76,6 +90,21 @@ export default function ImageEditor() {
             ))}
           </div>
           
+          <div className="grid grid-cols-[1fr,300px] gap-4">
+            <div>
+              <Image
+                src={imageUrl} 
+                alt="Edited image" 
+                className="max-w-full"
+                height={500}
+                width={500}
+              />
+            </div>
+            <div>
+              <TextOverlayControls onApply={handleTextOverlay} />
+            </div>
+          </div>
+          
           <div className="flex items-center gap-2 mt-4">
             <select 
               value={selectedFormat}
@@ -93,16 +122,8 @@ export default function ImageEditor() {
               Export
             </button>
           </div>
-          
-          <Image
-            src={imageUrl} 
-            alt="Edited image" 
-            className="max-w-full"
-            height={500}
-            width={500}
-          />
         </>
       )}
     </div>
   );
-} 
+}
