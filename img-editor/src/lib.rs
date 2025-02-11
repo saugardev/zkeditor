@@ -58,6 +58,17 @@ pub enum Transformation {
     TextOverlay(TextOverlayParameters),
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageInput {
+    pub image_data: Vec<u8>,
+    pub transformations: Vec<Transformation>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ImageOutput {
+    pub final_image: Vec<u8>,
+    pub transformation_count: usize
+}
 
 #[wasm_bindgen]
 impl ImageProject {
@@ -109,5 +120,30 @@ impl ImageProject {
             .map_err(|e| JsValue::from_str(&e))?;
         self.layers.push(empty_layer);
         Ok(())
+    }
+
+    pub fn process_with_proof(&mut self, input: &JsValue) -> Result<JsValue, JsValue> {
+        let input: ImageInput = serde_wasm_bindgen::from_value(input.clone())
+            .map_err(|e| JsValue::from_str(&format!("Invalid input: {}", e)))?;
+        
+        // Add initial image
+        self.add_layer(&input.image_data)?;
+        
+        // Apply all transformations
+        for transformation in &input.transformations {
+            self.transform_layer(0, &serde_wasm_bindgen::to_value(&transformation)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))?)?;
+        }
+        
+        // Get final image
+        let final_image = self.get_layer(0, None)?;
+        
+        let output = ImageOutput {
+            final_image,
+            transformation_count: input.transformations.len()
+        };
+        
+        serde_wasm_bindgen::to_value(&output)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 }

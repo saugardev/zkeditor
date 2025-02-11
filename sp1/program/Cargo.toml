@@ -1,0 +1,9 @@
+[package]
+name = "img-editor-program"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-zkvm = "4.0.0"
+img-editor-lib = { path = "../../img-editor", default-features = false, features = ["zkvm"] }
+serde = { version = "1.0", features = ["derive"] }
