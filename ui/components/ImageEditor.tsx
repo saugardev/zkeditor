@@ -1,7 +1,7 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useImageEditor } from '@/hooks/useImageEditor';
-import Image from 'next/image';
 import { useState } from 'react';
 import { TextOverlayControls } from './TextOverlayControls';
 
@@ -32,16 +32,27 @@ export default function ImageEditor() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    await loadImage(file);
-    setImageUrl(URL.createObjectURL(file));
+    const project = await loadImage(file);
+    const initialImage = await project.get_layer(0);
+    setImageUrl(URL.createObjectURL(new Blob([initialImage], { type: 'image/png' })));
   };
 
   const handleTransform = async (type: string, value?: number, paramName?: string) => {
     const transformation = {
       [type]: value !== undefined ? { [paramName || 'value']: value } : null
     };
+    
     const newUrl = await applyTransformation(transformation);
-    if (newUrl) setImageUrl(newUrl);
+    if (newUrl) {
+      const img = new Image();
+      await new Promise<void>((resolve) => {
+        img.onload = () => {
+          setImageUrl(newUrl);
+          resolve();
+        };
+        img.src = newUrl;
+      });
+    }
   };
 
   const handleTextOverlay = async (params: {
@@ -54,7 +65,16 @@ export default function ImageEditor() {
     }
   }) => {
     const newUrl = await applyTransformation(params);
-    if (newUrl) setImageUrl(newUrl);
+    if (newUrl) {
+      const img = new Image();
+      await new Promise<void>((resolve) => {
+        img.onload = () => {
+          setImageUrl(newUrl);
+          resolve();
+        };
+        img.src = newUrl;
+      });
+    }
   };
 
   const handleExport = async () => {
@@ -91,14 +111,18 @@ export default function ImageEditor() {
           </div>
           
           <div className="grid grid-cols-[1fr,300px] gap-4">
-            <div>
-              <Image
-                src={imageUrl} 
-                alt="Edited image" 
-                className="max-w-full"
-                height={500}
-                width={500}
-              />
+            <div className="relative flex justify-center">
+              <div className="max-h-[80vh] w-auto">
+                <img
+                  src={imageUrl} 
+                  alt="Edited image" 
+                  className="h-full w-auto object-contain"
+                  style={{ 
+                    maxWidth: '100%',
+                    objectFit: 'contain'
+                  }}
+                />
+              </div>
             </div>
             <div>
               <TextOverlayControls onApply={handleTextOverlay} />
