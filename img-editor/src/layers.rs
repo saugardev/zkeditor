@@ -65,7 +65,6 @@ impl Layer {
 
                 let width = rgba_image.width() as i32;
                 let height = rgba_image.height() as i32;
-                let mut pixel_buffer = vec![0u8; (width * height) as usize];
 
                 for glyph in &glyphs {
                     if let Some(bb) = glyph.pixel_bounding_box() {
@@ -74,23 +73,17 @@ impl Layer {
                             let py = y as i32 + bb.min.y;
                             
                             if px >= 0 && px < width && py >= 0 && py < height {
-                                pixel_buffer[(py * width + px) as usize] = (v * 255.0) as u8;
+                                let alpha = (v * 255.0) as u8;
+                                if alpha > 0 {
+                                    rgba_image.put_pixel(px as u32, py as u32, Rgba([
+                                        color[0],
+                                        color[1], 
+                                        color[2],
+                                        alpha
+                                    ]));
+                                }
                             }
                         });
-                    }
-                }
-
-                for y in 0..height {
-                    for x in 0..width {
-                        let alpha = pixel_buffer[(y * width + x) as usize];
-                        if alpha > 0 {
-                            rgba_image.put_pixel(x as u32, y as u32, Rgba([
-                                color[0],
-                                color[1], 
-                                color[2],
-                                alpha
-                            ]));
-                        }
                     }
                 }
 
