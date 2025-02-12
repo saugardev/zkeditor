@@ -1,7 +1,7 @@
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
 use serde::{Serialize, Deserialize};
 use crate::Transformation;
-use ab_glyph::{Font, FontArc, PxScale, Point};
+use rusttype::{point, Font as RusttypeFont, Scale};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layer {
@@ -49,46 +49,49 @@ impl Layer {
             Transformation::Blur(params) => self.image.blur(params.sigma),
             Transformation::TextOverlay(params) => {
                 let font_data = include_bytes!("../assets/impact.ttf");
-                let font = FontArc::try_from_slice(font_data)
-                    .map_err(|_| "Failed to load font")?;
+                let font = RusttypeFont::try_from_bytes(font_data)
+                    .ok_or("Failed to load font")?;
 
                 let mut rgba_image = self.image.to_rgba8();
-                let scale = PxScale::from(params.size as f32);
+                let scale = Scale::uniform(params.size as f32);
                 let color = Self::hex_to_rgba(&params.color)?;
 
-                let mut max_ascent: f32 = 0.0;
-                for c in params.text.chars() {
-                    let glyph = font.glyph_id(c).with_scale(scale);
-                    let bounds = font.glyph_bounds(&glyph);
-                    max_ascent = max_ascent.max(-bounds.min.y);
-                }
-                
-                let mut cursor = Point { 
-                    x: params.x as f32, 
-                    y: params.y as f32 + max_ascent,
-                };
+                let v_metrics = font.v_metrics(scale);
+                let glyphs: Vec<_> = font.layout(
+                    &params.text,
+                    scale,
+                    point(params.x as f32, params.y as f32 + v_metrics.ascent)
+                ).collect();
 
-                for c in params.text.chars() {
-                    let glyph = font.glyph_id(c)
-                        .with_scale(scale);
-                    if let Some(outline) = font.outline_glyph(glyph.clone()) {
-                        outline.draw(|x, y, v| {
-                            let px = ((x as f32 + cursor.x).max(0.0)) as u32;
-                            let py = ((y as f32 + cursor.y).max(0.0)) as u32;
-                            if px < rgba_image.width() && py < rgba_image.height() {
-                                let alpha = (v * 255.0) as u8;
-                                if alpha > 0 {
-                                    rgba_image.put_pixel(px, py, Rgba([
-                                        color[0],
-                                        color[1],
-                                        color[2],
-                                        alpha,
-                                    ]));
-                                }
+                let width = rgba_image.width() as i32;
+                let height = rgba_image.height() as i32;
+                let mut pixel_buffer = vec![0u8; (width * height) as usize];
+
+                for glyph in &glyphs {
+                    if let Some(bb) = glyph.pixel_bounding_box() {
+                        glyph.draw(|x, y, v| {
+                            let px = x as i32 + bb.min.x;
+                            let py = y as i32 + bb.min.y;
+                            
+                            if px >= 0 && px < width && py >= 0 && py < height {
+                                pixel_buffer[(py * width + px) as usize] = (v * 255.0) as u8;
                             }
                         });
                     }
-                    cursor.x += font.glyph_bounds(&glyph).width();
+                }
+
+                for y in 0..height {
+                    for x in 0..width {
+                        let alpha = pixel_buffer[(y * width + x) as usize];
+                        if alpha > 0 {
+                            rgba_image.put_pixel(x as u32, y as u32, Rgba([
+                                color[0],
+                                color[1], 
+                                color[2],
+                                alpha
+                            ]));
+                        }
+                    }
                 }
 
                 DynamicImage::ImageRgba8(rgba_image)

@@ -3,16 +3,6 @@
 version = 3
 
 [[package]]
-name = "ab_glyph"
-version = "0.2.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec3672c180e71eeaaac3a541fbbc5f5ad4def8b747c595ad30d674e43049f7b0"
-dependencies = [
- "ab_glyph_rasterizer",
- "owned_ttf_parser 0.25.0",
-]
-
-[[package]]
 name = "ab_glyph_rasterizer"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -170,10 +160,10 @@ dependencies = [
 name = "img-editor-lib"
 version = "0.1.0"
 dependencies = [
- "ab_glyph",
  "getrandom",
  "image",
  "imageproc",
+ "rusttype",
  "serde",
  "serde-wasm-bindgen",
  "serde_bytes",
@@ -342,15 +332,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "owned_ttf_parser"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ec719bbf3b2a81c109a4e20b1f129b5566b7dce654bc3872f6a05abf82b2c4"
-dependencies = [
- "ttf-parser 0.25.1",
-]
-
-[[package]]
 name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -459,7 +440,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ff8374aa04134254b7995b63ad3dc41c7f7236f69528b28553da7d72efaa967"
 dependencies = [
  "ab_glyph_rasterizer",
- "owned_ttf_parser 0.15.2",
+ "owned_ttf_parser",
 ]
 
 [[package]]
