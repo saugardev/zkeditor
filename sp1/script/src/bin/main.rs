@@ -12,9 +12,10 @@
 
 use clap::Parser;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use img_editor_lib::{ImageInput, ImageOutput, Transformation};
+use img_editor_lib::{BlurParameters, ImageInput, ImageOutput, Transformation};
 use std::fs;
 use bincode;
+use std::env;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const IMG_EDITOR_ELF: &[u8] = include_elf!("img-editor-program");
@@ -34,6 +35,10 @@ struct Args {
 }
 
 fn main() {
+    // Enable profiling
+    env::set_var("TRACE_FILE", "image_editor_profile.json");
+    env::set_var("TRACE_SAMPLE_RATE", "100");
+
     // Setup the logger.
     sp1_sdk::utils::setup_logger();
     dotenv::dotenv().ok();
@@ -42,7 +47,7 @@ fn main() {
     let args = Args::parse();
 
     // Read the image file
-    let image_data = fs::read("src/bear.jpg").expect("Failed to read image file");
+    let image_data = fs::read("src/diamond.webp").expect("Failed to read image file");
 
     if args.execute == args.prove {
         eprintln!("Error: You must specify either --execute or --prove");
@@ -55,7 +60,7 @@ fn main() {
     // Create input with rotate90 transformation
     let input = ImageInput {
         image_data,
-        transformations: vec![Transformation::Rotate90],
+        transformations: vec![Transformation::Rotate90, Transformation::Blur(BlurParameters { sigma: 5.0 })],
     };
 
     // Setup stdin with serialized input
@@ -66,14 +71,24 @@ fn main() {
 
     if args.execute {
         // Execute the program
-        let (output, _) = client.execute(IMG_EDITOR_ELF, &stdin).run().unwrap();
+        let (output, report) = client.execute(IMG_EDITOR_ELF, &stdin).run().unwrap();
         println!("Program executed successfully.");
         // Deserialize output
         let ImageOutput { final_image, .. } = bincode::deserialize(output.as_slice()).unwrap();
 
         // Write rotated image
-        fs::write("src/bear_rotated.jpg", final_image).expect("Failed to write output image");
-        println!("Image rotated and saved as bear_rotated.jpg");
+        fs::write("src/diamond_rotated.png", final_image).expect("Failed to write output image");
+        println!("Image rotated and saved as diamond_rotated.png");
+
+        // Print cycle counts
+        println!("\nCycle counts:");
+        
+        // Print individual transformation cycles
+        for i in 0..report.cycle_tracker.len() {
+            if let Some(cycles) = report.cycle_tracker.get(&format!("transform_{}", i)) {
+                println!("Transform {}: {} cycles", i, cycles);
+            }
+        }
     } else {
         // Setup the program for proving.
         let (pk, vk) = client.setup(IMG_EDITOR_ELF);

@@ -8,3 +8,4 @@ sp1-zkvm = "4.0.0"
 img-editor-lib = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 image = "0.24"
+sp1-derive = "4.0.0"
