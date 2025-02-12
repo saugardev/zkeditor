@@ -2375,12 +2375,9 @@ dependencies = [
  "getrandom 0.1.16",
  "image",
  "imageproc",
- "libm",
  "serde",
- "serde-wasm-bindgen",
  "serde_bytes",
  "ttf-parser 0.25.1",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -4333,17 +4330,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8e3592472072e6e22e0a54d5904d9febf8508f65fb8552499a1abc7d1078c3a"
 dependencies = [
  "serde_derive",
-]
-
-[[package]]
-name = "serde-wasm-bindgen"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3b143e2833c57ab9ad3ea280d21fd34e285a42837aeb0ee301f4f41890fa00e"
-dependencies = [
- "js-sys",
- "serde",
- "wasm-bindgen",
 ]
 
 [[package]]

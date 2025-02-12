@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-# Only use cdylib for wasm32 target
 crate-type = ["lib", "cdylib"]
 
 [features]
-default = ["wasm"]
+default = []
 wasm = ["wasm-bindgen", "serde-wasm-bindgen"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -23,6 +22,3 @@ ab_glyph = { version = "0.2", default-features = false, features = ["std"] }
 ttf-parser = { version = "0.25", features = ["std"] }
 getrandom = { version = "0.1", features = ["dummy"] }
 serde_bytes = "0.11"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-libm = "0.2"
