@@ -1,6 +1,6 @@
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
 use serde::{Serialize, Deserialize};
-use crate::{TextOverlayParameters, Transformation};
+use crate::{TextOverlayParameters, Transformation, Region};
 use rusttype::{point, Font as RusttypeFont, Scale};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -33,23 +33,103 @@ impl Layer {
         })
     }
 
-    pub fn apply_transformation(&mut self, transformation: Transformation) -> Result<(), String> {
-        self.image = match transformation {
-            Transformation::Crop(params) => {
-                self.image.crop_imm(params.x, params.y, params.width, params.height)
+    fn apply_region_transformation(&mut self, region: &Region, transform: Box<dyn Fn(&mut DynamicImage)>) -> Result<(), String> {
+        let mut sub_image = self.image.crop_imm(
+            region.x,
+            region.y,
+            region.width,
+            region.height
+        );
+        
+        transform(&mut sub_image);
+        
+        // Convert both images to RGBA8 for pixel manipulation
+        let mut new_image = self.image.to_rgba8();
+        let sub_rgba = sub_image.to_rgba8();
+        
+        // Copy the transformed region back
+        for y in 0..region.height {
+            for x in 0..region.width {
+                let pixel = sub_rgba.get_pixel(x, y);
+                new_image.put_pixel(x + region.x, y + region.y, *pixel);
             }
-            Transformation::Grayscale => self.image.grayscale(),
-            Transformation::Rotate90 => self.image.rotate90(),
-            Transformation::Rotate180 => self.image.rotate180(),
-            Transformation::Rotate270 => self.image.rotate270(),
-            Transformation::FlipVertical => self.image.flipv(),
-            Transformation::FlipHorizontal => self.image.fliph(),
-            Transformation::Brighten(params) => self.image.brighten(params.value),
-            Transformation::Contrast(params) => self.image.adjust_contrast(params.contrast),
-            Transformation::Blur(params) => self.image.blur(params.sigma),
-            Transformation::TextOverlay(params) => self.apply_text_overlay(&params)?,
-        };
+        }
+        
+        self.image = DynamicImage::ImageRgba8(new_image);
         Ok(())
+    }
+
+    pub fn apply_transformation(&mut self, transformation: Transformation) -> Result<(), String> {
+        match transformation {
+            Transformation::Grayscale { region } => {
+                if let Some(region) = region {
+                    self.apply_region_transformation(&region, Box::new(|img| {
+                        *img = img.grayscale();
+                    }))
+                } else {
+                    self.image = self.image.grayscale();
+                    Ok(())
+                }
+            },
+            Transformation::FlipHorizontal { region } => {
+                if let Some(region) = region {
+                    self.apply_region_transformation(&region, Box::new(|img| {
+                        *img = img.fliph();
+                    }))
+                } else {
+                    self.image = self.image.fliph();
+                    Ok(())
+                }
+            },
+            Transformation::FlipVertical { region } => {
+                if let Some(region) = region {
+                    self.apply_region_transformation(&region, Box::new(|img| {
+                        *img = img.flipv();
+                    }))
+                } else {
+                    self.image = self.image.flipv();
+                    Ok(())
+                }
+            },
+            // Keep other transformations as is
+            Transformation::Rotate90 => {
+                self.image = self.image.rotate90();
+                Ok(())
+            },
+            Transformation::Rotate180 => {
+                self.image = self.image.rotate180();
+                Ok(())
+            },
+            Transformation::Rotate270 => {
+                self.image = self.image.rotate270();
+                Ok(())
+            },
+            Transformation::Brighten(params) => {
+                self.image = self.image.brighten(params.value);
+                Ok(())
+            },
+            Transformation::Contrast(params) => {
+                self.image = self.image.adjust_contrast(params.contrast);
+                Ok(())
+            },
+            Transformation::Blur(params) => {
+                self.image = self.image.blur(params.sigma);
+                Ok(())
+            },
+            Transformation::TextOverlay(params) => {
+                self.apply_text_overlay(&params)
+                    .map(|img| { self.image = img; })
+            },
+            Transformation::Crop(params) => {
+                self.image = self.image.crop_imm(
+                    params.x,
+                    params.y,
+                    params.width,
+                    params.height
+                );
+                Ok(())
+            },
+        }
     }
 
     fn apply_text_overlay(&mut self, params: &TextOverlayParameters) -> Result<DynamicImage, String> {

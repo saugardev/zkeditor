@@ -33,14 +33,22 @@ pub struct TextOverlayParameters {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Region {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Transformation {
     Crop(CropParameters),
-    Grayscale,
+    Grayscale { region: Option<Region> },
     Rotate90,
     Rotate180,
     Rotate270,
-    FlipVertical,
-    FlipHorizontal,
+    FlipVertical { region: Option<Region> },
+    FlipHorizontal { region: Option<Region> },
     Brighten(BrightenParameters),
     Contrast(ContrastParameters),
     Blur(BlurParameters),    
