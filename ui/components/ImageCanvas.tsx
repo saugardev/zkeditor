@@ -132,7 +132,8 @@ export function ImageCanvas({
               <SelectionRect 
                 selection={selection} 
                 onSelectionChange={onSelectionChange} 
-                imageRef={imageRef as React.RefObject<HTMLImageElement>} 
+                imageRef={imageRef as React.RefObject<HTMLImageElement>}
+                zoom={zoom}
               />
             )}
           </div>
