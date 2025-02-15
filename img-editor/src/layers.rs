@@ -104,17 +104,38 @@ impl Layer {
                 self.image = self.image.rotate270();
                 Ok(())
             },
-            Transformation::Brighten(params) => {
-                self.image = self.image.brighten(params.value);
-                Ok(())
+            Transformation::Brighten { value, region } => {
+                if let Some(region) = region {
+                    let value = value;
+                    self.apply_region_transformation(&region, Box::new(move |img| {
+                        *img = img.brighten(value);
+                    }))
+                } else {
+                    self.image = self.image.brighten(value);
+                    Ok(())
+                }
             },
-            Transformation::Contrast(params) => {
-                self.image = self.image.adjust_contrast(params.contrast);
-                Ok(())
+            Transformation::Contrast { contrast, region } => {
+                if let Some(region) = region {
+                    let contrast = contrast;
+                    self.apply_region_transformation(&region, Box::new(move |img| {
+                        *img = img.adjust_contrast(contrast);
+                    }))
+                } else {
+                    self.image = self.image.adjust_contrast(contrast);
+                    Ok(())
+                }
             },
-            Transformation::Blur(params) => {
-                self.image = self.image.blur(params.sigma);
-                Ok(())
+            Transformation::Blur { sigma, region } => {
+                if let Some(region) = region {
+                    let sigma = sigma;
+                    self.apply_region_transformation(&region, Box::new(move |img| {
+                        *img = img.blur(sigma);
+                    }))
+                } else {
+                    self.image = self.image.blur(sigma);
+                    Ok(())
+                }
             },
             Transformation::TextOverlay(params) => {
                 self.apply_text_overlay(&params)

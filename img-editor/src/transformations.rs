@@ -49,9 +49,9 @@ pub enum Transformation {
     Rotate270,
     FlipVertical { region: Option<Region> },
     FlipHorizontal { region: Option<Region> },
-    Brighten(BrightenParameters),
-    Contrast(ContrastParameters),
-    Blur(BlurParameters),    
+    Brighten { value: i32, region: Option<Region> },
+    Contrast { contrast: f32, region: Option<Region> },
+    Blur { sigma: f32, region: Option<Region> },    
     TextOverlay(TextOverlayParameters),
 }
 

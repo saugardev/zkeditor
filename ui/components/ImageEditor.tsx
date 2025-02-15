@@ -16,8 +16,8 @@ interface RegionSelection {
 interface Transformation {
   name: string;
   type: string;
-  paramName?: string;
   value?: number;
+  directApply?: boolean;
 }
 
 export default function ImageEditor() {
@@ -31,14 +31,14 @@ export default function ImageEditor() {
 
   const transformations: Transformation[] = [
     { name: 'Grayscale', type: 'Grayscale' },
-    { name: 'Rotate 90°', type: 'Rotate90' },
-    { name: 'Rotate 180°', type: 'Rotate180' },
-    { name: 'Rotate 270°', type: 'Rotate270' },
-    { name: 'Flip Vertical', type: 'FlipVertical' },
-    { name: 'Flip Horizontal', type: 'FlipHorizontal' },
-    { name: 'Brighten', type: 'Brighten', paramName: 'value', value: 10 },
-    { name: 'Contrast', type: 'Contrast', paramName: 'contrast', value: 1.5 },
-    { name: 'Blur', type: 'Blur', paramName: 'sigma', value: 10.0 }
+    { name: 'Rotate 90°', type: 'Rotate90', directApply: true },
+    { name: 'Rotate 180°', type: 'Rotate180', directApply: true },
+    { name: 'Rotate 270°', type: 'Rotate270', directApply: true },
+    { name: 'Flip Vertical', type: 'FlipVertical', directApply: true },
+    { name: 'Flip Horizontal', type: 'FlipHorizontal', directApply: true },
+    { name: 'Brighten', type: 'Brighten', value: 10 },
+    { name: 'Contrast', type: 'Contrast', value: 1.5 },
+    { name: 'Blur', type: 'Blur', value: 10.0 }
   ];
 
   const formats = [
@@ -71,20 +71,59 @@ export default function ImageEditor() {
   ) => {
     try {
       setIsLoading(true);
-      const noRegionTransforms = ['Rotate90', 'Rotate180', 'Rotate270', 'Brighten', 'Contrast', 'Blur'];
-      const transformation = {
-        [type]: {
-          ...(value !== undefined ? { [paramName || 'value']: value } : {}),
-          ...(region && !noRegionTransforms.includes(type) ? { 
-            region: {
+      const noRegionTransforms = ['Rotate90', 'Rotate180', 'Rotate270'];
+      
+      let transformation;
+      if (type === 'Brighten') {
+        transformation = {
+          Brighten: {
+            value: 10,
+            region: region ? {
               x: Math.round(region.x),
-              y: Math.round(region.y), 
+              y: Math.round(region.y),
               width: Math.round(region.width),
               height: Math.round(region.height)
-            }
-          } : {})
-        }
-      };
+            } : null
+          }
+        };
+      } else if (type === 'Contrast') {
+        transformation = {
+          Contrast: {
+            contrast: 1.5,
+            region: region ? {
+              x: Math.round(region.x),
+              y: Math.round(region.y),
+              width: Math.round(region.width),
+              height: Math.round(region.height)
+            } : null
+          }
+        };
+      } else if (type === 'Blur') {
+        transformation = {
+          Blur: {
+            sigma: 10.0,
+            region: region ? {
+              x: Math.round(region.x),
+              y: Math.round(region.y),
+              width: Math.round(region.width),
+              height: Math.round(region.height)
+            } : null
+          }
+        };
+      } else {
+        transformation = {
+          [type]: noRegionTransforms.includes(type) 
+            ? null 
+            : {
+                region: region ? {
+                  x: Math.round(region.x),
+                  y: Math.round(region.y), 
+                  width: Math.round(region.width),
+                  height: Math.round(region.height)
+                } : null
+              }
+        };
+      }
       
       const newUrl = await applyTransformation(transformation);
       if (newUrl) {
@@ -157,15 +196,15 @@ export default function ImageEditor() {
           <button
             key={t.type}
             onClick={() => {
-              if (t.value !== undefined) {
-                handleTransform(t.type, t.value, t.paramName);
+              if (t.directApply) {
+                handleTransform(t.type);
               } else {
                 setSelectedTransform(t.type);
               }
             }}
             disabled={isLoading}
             className={`px-4 py-2 rounded ${
-              selectedTransform === t.type 
+              selectedTransform === t.type && !t.directApply
                 ? 'bg-blue-500 text-white' 
                 : 'bg-foreground text-background'
             } hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`}
