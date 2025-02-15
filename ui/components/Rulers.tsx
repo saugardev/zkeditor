@@ -18,15 +18,17 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
   const { major: step, minor: minorStep } = getStepSize(zoom);
   const scaledMinorStep = minorStep * zoom;
 
-  const visibleRange = {
-    x: {
-      start: Math.floor(-pan.x / zoom / step) * step,
-      end: Math.ceil((width / zoom - pan.x / zoom) / step) * step
-    },
-    y: {
-      start: Math.floor(-pan.y / zoom / step) * step,
-      end: Math.ceil((height / zoom - pan.y / zoom) / step) * step
-    }
+  // Adjust for the centered image position and ruler offset
+  const imageOffset = {
+    x: window.innerWidth / 2 - width * zoom / 2 + pan.x - 136,
+    y: window.innerHeight / 2 - height * zoom / 2 + pan.y + rulerSize
+  };
+
+  const getTickRange = (size: number, step: number, zoom: number) => {
+    const totalVisibleSize = window.innerWidth / zoom;
+    const minTick = Math.floor(-totalVisibleSize / step);
+    const maxTick = Math.ceil((size + totalVisibleSize) / step);
+    return Array.from({ length: maxTick - minTick }, (_, i) => i + minTick);
   };
 
   return (
@@ -34,13 +36,13 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
       <div 
         className="absolute bottom-0 left-0 h-6 bg-neutral-900 z-10"
         style={{ 
-          left: rulerSize, 
           right: 0
         }}
       >
         <svg width="100%" height={rulerSize} className="text-neutral-400">
-          {Array.from({ length: Math.ceil((visibleRange.x.end - visibleRange.x.start) / step) }).map((_, i) => {
-            const x = (visibleRange.x.start + i * step) * zoom + pan.x;
+          {getTickRange(width, step, zoom).map((i) => {
+            const value = i * step;
+            const x = value * zoom + imageOffset.x - rulerSize;
             return (
               <g key={i} transform={`translate(${x}, 0)`}>
                 <line
@@ -54,10 +56,10 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
                 <text
                   x={2}
                   y={rulerSize - 4}
-                  fontSize={`12px`}
+                  fontSize="12px"
                   fill="currentColor"
                 >
-                  {visibleRange.x.start + i * step}
+                  {value}
                 </text>
                 {zoom >= 0.25 && Array.from({ length: (step / minorStep) - 1 }).map((_, j) => (
                   <line
@@ -79,13 +81,13 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
       <div 
         className="absolute top-0 left-0 w-6 bg-neutral-900 z-10"
         style={{ 
-          top: rulerSize, 
           bottom: 0
         }}
       >
         <svg height="100%" width={rulerSize} className="text-neutral-400">
-          {Array.from({ length: Math.ceil((visibleRange.y.end - visibleRange.y.start) / step) }).map((_, i) => {
-            const y = (visibleRange.y.start + i * step) * zoom + pan.y;
+          {getTickRange(height, step, zoom).map((i) => {
+            const value = i * step;
+            const y = value * zoom + imageOffset.y - rulerSize;
             return (
               <g key={i} transform={`translate(0, ${y})`}>
                 <line
@@ -99,11 +101,11 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
                 <text
                   x={rulerSize - 4}
                   y={12}
-                  fontSize={`12px`}
+                  fontSize="12px"
                   fill="currentColor"
                   transform={`rotate(-90 ${rulerSize - 4} 12)`}
                 >
-                  {visibleRange.y.start + i * step}
+                  {value}
                 </text>
                 {zoom >= 0.25 && Array.from({ length: (step / minorStep) - 1 }).map((_, j) => (
                   <line
@@ -122,7 +124,6 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
         </svg>
       </div>
 
-      <div className="absolute top-0 left-0 w-6 h-6 bg-neutral-900 z-20" />
     </>
   );
 } 

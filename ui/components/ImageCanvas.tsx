@@ -109,7 +109,7 @@ export function ImageCanvas({
             pan={pan}
           />
           <div
-            className="absolute left-1/2 top-1/2 origin-center"
+            className="absolute left-1/2 top-1/2"
             style={{
               transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
             }}
@@ -126,6 +126,21 @@ export function ImageCanvas({
                   width: img.naturalWidth,
                   height: img.naturalHeight
                 });
+              }}
+            />
+            <div 
+              className="absolute inset-0 -z-10 bg-[#e0e0e0]"
+              style={{
+                backgroundImage: `
+                  linear-gradient(45deg, #c0c0c0 25%, transparent 25%),
+                  linear-gradient(-45deg, #c0c0c0 25%, transparent 25%),
+                  linear-gradient(45deg, transparent 75%, #c0c0c0 75%),
+                  linear-gradient(-45deg, transparent 75%, #c0c0c0 75%)
+                `,
+                backgroundSize: '20px 20px',
+                backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                width: imageDimensions.width,
+                height: imageDimensions.height
               }}
             />
             {selectedTool === 'selection' && (
