@@ -34,7 +34,7 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
   return (
     <>
       <div 
-        className="absolute bottom-0 left-0 h-6 bg-neutral-900 z-10"
+        className="absolute top-0 left-0 h-6 bg-neutral-900 z-10"
         style={{ 
           right: 0
         }}
@@ -124,6 +124,8 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
         </svg>
       </div>
 
+      <div className="absolute top-0 left-0 w-6 bg-neutral-900 z-10 h-6">
+      </div>
     </>
   );
 } 
