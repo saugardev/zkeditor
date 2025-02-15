@@ -1,7 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { SelectionRect } from './SelectionRect';
 import { Rulers } from './Rulers';
+import { Scan } from 'lucide-react';
 
 interface ImageCanvasProps {
   imageUrl: string | null;
@@ -31,6 +32,7 @@ export function ImageCanvas({
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+  const [lastFittedImageUrl, setLastFittedImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (imageRef.current) {
@@ -89,6 +91,33 @@ export function ImageCanvas({
       });
     };
   }, []);
+
+  const fitToBounds = useCallback(() => {
+    if (!containerRef.current || !imageRef.current) return;
+    
+    const container = containerRef.current;
+    const image = imageRef.current;
+    
+    const containerAspect = container.clientWidth / container.clientHeight;
+    const imageAspect = image.naturalWidth / image.naturalHeight;
+    
+    let newZoom;
+    if (containerAspect > imageAspect) {
+      newZoom = (container.clientHeight * 0.9) / image.naturalHeight;
+    } else {
+      newZoom = (container.clientWidth * 0.9) / image.naturalWidth;
+    }
+    
+    onZoomChange(newZoom);
+    onPanChange({ x: 0, y: 0 });
+  }, [onZoomChange, onPanChange]);
+
+  useEffect(() => {
+    if (imageUrl && imageUrl !== lastFittedImageUrl) {
+      fitToBounds();
+      setLastFittedImageUrl(imageUrl);
+    }
+  }, [imageUrl, lastFittedImageUrl, fitToBounds]);
 
   return (
     <div
@@ -153,8 +182,15 @@ export function ImageCanvas({
             )}
           </div>
           
-          <div className="absolute bottom-8 right-2 bg-neutral-900 px-2 py-1 rounded text-white text-sm">
-            {Math.round(zoom * 100)}% | {imageDimensions.width}x{imageDimensions.height}px
+          <div className="absolute bottom-8 right-2 bg-neutral-900 px-2 py-1 rounded text-white text-sm flex items-center gap-2">
+            <span>{Math.round(zoom * 100)}% | {imageDimensions.width}x{imageDimensions.height}px</span>
+            <button
+              onClick={fitToBounds}
+              className="p-1 hover:bg-neutral-800 rounded"
+              title="Reset zoom"
+            >
+              <Scan size={14} />
+            </button>
           </div>
         </>
       )}
