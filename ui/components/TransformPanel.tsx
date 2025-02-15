@@ -13,9 +13,23 @@ interface TransformPanelProps {
   onTransform: (type: string, value?: number, paramName?: string, region?: RegionSelection) => Promise<void>;
   onTextOverlay: (params: any) => Promise<void>;
   onExport: () => Promise<void>;
+  selection: RegionSelection | null;
+  onSelectionChange: (selection: RegionSelection | null) => void;
 }
 
-export function TransformPanel({ selectedTool, onTransform, onTextOverlay }: TransformPanelProps) {
+type TransformParams = {
+  Brighten: { value: number };
+  Contrast: { contrast: number };
+  Blur: { sigma: number };
+};
+
+export function TransformPanel({ 
+  selectedTool, 
+  onTransform, 
+  onTextOverlay,
+  selection,
+  onSelectionChange
+}: TransformPanelProps) {
   const [textParams, setTextParams] = useState({
     text: '',
     x: 10,
@@ -24,7 +38,81 @@ export function TransformPanel({ selectedTool, onTransform, onTextOverlay }: Tra
     color: '#ffffff'
   });
 
+  const [params, setParams] = useState<TransformParams>({
+    Brighten: { value: 10 },
+    Contrast: { contrast: 1.5 },
+    Blur: { sigma: 10.0 }
+  });
+
   if (!selectedTool) return null;
+
+  const renderToolParams = () => {
+    switch (selectedTool) {
+      case 'Brighten':
+        return (
+          <input
+            type="range"
+            min="-100"
+            max="100"
+            value={params.Brighten.value}
+            onChange={(e) => setParams({
+              ...params,
+              Brighten: { value: parseInt(e.target.value) }
+            })}
+            className="w-full bg-neutral-800"
+          />
+        );
+      case 'Contrast':
+        return (
+          <input
+            type="range"
+            min="0"
+            max="300"
+            step="10"
+            value={params.Contrast.contrast * 100}
+            onChange={(e) => setParams({
+              ...params,
+              Contrast: { contrast: parseInt(e.target.value) / 100 }
+            })}
+            className="w-full bg-neutral-800"
+          />
+        );
+      case 'Blur':
+        return (
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="0.5"
+            value={params.Blur.sigma}
+            onChange={(e) => setParams({
+              ...params,
+              Blur: { sigma: parseFloat(e.target.value) }
+            })}
+            className="w-full bg-neutral-800"
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const handleApply = () => {
+    console.log('Applying transformation:', selectedTool);
+    switch (selectedTool) {
+      case 'Brighten':
+        onTransform(selectedTool, params.Brighten.value);
+        break;
+      case 'Contrast':
+        onTransform(selectedTool, params.Contrast.contrast);
+        break;
+      case 'Blur':
+        onTransform(selectedTool, params.Blur.sigma);
+        break;
+      default:
+        onTransform(selectedTool);
+    }
+  };
 
   return (
     <div className="text-white">
@@ -74,12 +162,31 @@ export function TransformPanel({ selectedTool, onTransform, onTextOverlay }: Tra
           </button>
         </div>
       ) : (
-        <button
-          onClick={() => onTransform(selectedTool)}
-          className="bg-neutral-800 px-3 py-1 rounded"
-        >
-          Apply {selectedTool}
-        </button>
+        <div className="flex flex-col gap-3">
+          {renderToolParams()}
+          
+          {selection && (
+            <div className="mt-2">
+              <div className="text-sm text-neutral-400 mb-1">Selection</div>
+              <div className="text-xs text-neutral-500">
+                {Math.round(selection.x)}, {Math.round(selection.y)}, {Math.round(selection.width)} x {Math.round(selection.height)}
+              </div>
+              <button
+                onClick={() => onSelectionChange(null)}
+                className="mt-2 text-sm text-red-400 hover:text-red-300"
+              >
+                Clear Selection
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={handleApply}
+            className="bg-neutral-800 px-3 py-1 rounded"
+          >
+            Apply {selectedTool}
+          </button>
+        </div>
       )}
     </div>
   );

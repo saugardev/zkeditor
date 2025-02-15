@@ -50,7 +50,7 @@ export default function ImageEditor() {
     
     try {
       setIsTabLoading(true);
-      const project = await loadImage(file);
+      const project = await loadImage(file, activeTab);
       const initialImage = await project.get_layer(0);
       const imageUrl = URL.createObjectURL(new Blob([initialImage], { type: 'image/png' }));
       updateTabState(activeTab, { imageUrl });
@@ -62,49 +62,52 @@ export default function ImageEditor() {
   };
 
   const handleTransform = async (
-    type: string, 
-    value?: number, 
+    type: string,
+    value?: number,
     paramName?: string,
     region?: RegionSelection
   ) => {
     try {
+      console.log('Starting transformation:', { type, value, paramName, region });
       setIsTabLoading(true);
       const noRegionTransforms = ['Rotate90', 'Rotate180', 'Rotate270'];
+      
+      const currentSelection = tabs[activeTab]?.selection;
       
       let transformation;
       if (type === 'Brighten') {
         transformation = {
           Brighten: {
-            value: 10,
-            region: region ? {
-              x: Math.round(region.x),
-              y: Math.round(region.y),
-              width: Math.round(region.width),
-              height: Math.round(region.height)
+            value,
+            region: currentSelection ? {
+              x: Math.round(currentSelection.x),
+              y: Math.round(currentSelection.y),
+              width: Math.round(currentSelection.width),
+              height: Math.round(currentSelection.height)
             } : null
           }
         };
       } else if (type === 'Contrast') {
         transformation = {
           Contrast: {
-            contrast: 1.5,
-            region: region ? {
-              x: Math.round(region.x),
-              y: Math.round(region.y),
-              width: Math.round(region.width),
-              height: Math.round(region.height)
+            contrast: value,
+            region: currentSelection ? {
+              x: Math.round(currentSelection.x),
+              y: Math.round(currentSelection.y),
+              width: Math.round(currentSelection.width),
+              height: Math.round(currentSelection.height)
             } : null
           }
         };
       } else if (type === 'Blur') {
         transformation = {
           Blur: {
-            sigma: 10.0,
-            region: region ? {
-              x: Math.round(region.x),
-              y: Math.round(region.y),
-              width: Math.round(region.width),
-              height: Math.round(region.height)
+            sigma: value,
+            region: currentSelection ? {
+              x: Math.round(currentSelection.x),
+              y: Math.round(currentSelection.y),
+              width: Math.round(currentSelection.width),
+              height: Math.round(currentSelection.height)
             } : null
           }
         };
@@ -113,21 +116,25 @@ export default function ImageEditor() {
           [type]: noRegionTransforms.includes(type) 
             ? null 
             : {
-                region: region ? {
-                  x: Math.round(region.x),
-                  y: Math.round(region.y), 
-                  width: Math.round(region.width),
-                  height: Math.round(region.height)
+                region: currentSelection ? {
+                  x: Math.round(currentSelection.x),
+                  y: Math.round(currentSelection.y), 
+                  width: Math.round(currentSelection.width),
+                  height: Math.round(currentSelection.height)
                 } : null
               }
         };
       }
       
-      const newUrl = await applyTransformation(transformation);
+      console.log('Transformation object:', transformation);
+      console.log('Current tab:', activeTab);
+      console.log('Current tab image:', tabs[activeTab]?.imageUrl);
+      
+      const newUrl = await applyTransformation(transformation, activeTab);
+      console.log('New URL after transformation:', newUrl);
+      
       if (newUrl) {
-        const updatedTabs = [...tabs];
-        updatedTabs[activeTab] = { ...updatedTabs[activeTab], imageUrl: newUrl };
-        setActiveTab(activeTab);
+        updateTabState(activeTab, { imageUrl: newUrl });
       }
     } catch (error) {
       console.error('Transform failed:', error);
@@ -147,7 +154,7 @@ export default function ImageEditor() {
   }) => {
     try {
       setIsTabLoading(true);
-      const newUrl = await applyTransformation(params);
+  const newUrl = await applyTransformation(params, activeTab);
       if (newUrl) {
         const updatedTabs = [...tabs];
         updatedTabs[activeTab] = { ...updatedTabs[activeTab], imageUrl: newUrl };
@@ -161,7 +168,7 @@ export default function ImageEditor() {
   };
 
   const handleExport = async () => {
-    const url = await exportImage(selectedTool === 'png' ? 'png' : 'jpeg');
+  const url = await exportImage(selectedTool === 'png' ? 'png' : 'jpeg', activeTab);
     if (url) {
       const link = document.createElement('a');
       link.href = url;
@@ -260,12 +267,16 @@ export default function ImageEditor() {
             </div>
   
             <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4">
-              <TransformPanel
-                selectedTool={selectedTool}
-                onTransform={handleTransform}
-                onTextOverlay={handleTextOverlay}
-                onExport={handleExport}
-              />
+              <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4">
+                <TransformPanel
+                  selectedTool={selectedTool}
+                  onTransform={handleTransform}
+                  onTextOverlay={handleTextOverlay}
+                  onExport={handleExport}
+                  selection={tabs[activeTab]?.selection ?? null}
+                  onSelectionChange={handleSelectionChange}
+                />
+              </div>
             </div>
           </div>
         </div>

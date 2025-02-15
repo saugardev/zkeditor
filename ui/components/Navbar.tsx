@@ -13,7 +13,7 @@ interface MenuItem {
 
 export function Navbar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const { addTab, setIsLoading } = useTabs();
+  const { addTab, setIsLoading, tabs } = useTabs();
   const { loadImage } = useImageEditor();
 
   const menuItems: MenuItem[] = [
@@ -40,7 +40,7 @@ export function Navbar() {
               if (file) {
                 try {
                   setIsLoading(true);
-                  const project = await loadImage(file);
+                  const project = await loadImage(file, tabs.length);
                   const initialImage = await project.get_layer(0);
                   const imageUrl = URL.createObjectURL(new Blob([initialImage], { type: 'image/png' }));
                   addTab({ name: file.name, imageUrl });

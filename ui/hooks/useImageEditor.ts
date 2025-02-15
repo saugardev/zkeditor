@@ -1,60 +1,61 @@
-import { useState, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import { createImageProject } from '@/lib/wasm-loader';
 
 export function useImageEditor() {
-  const [imageProject, setImageProject] = useState<Awaited<ReturnType<typeof createImageProject>> | null>(null);
+  const projectsRef = useRef<Map<number, Awaited<ReturnType<typeof createImageProject>>>>(new Map());
 
-  const loadImage = useCallback(async (file: File) => {
+  const loadImage = useCallback(async (file: File, tabIndex: number) => {
+    console.log('Loading image for tab:', tabIndex);
     const arrayBuffer = await file.arrayBuffer();
     const project = await createImageProject();
     await project.add_layer(new Uint8Array(arrayBuffer));
-
+    
     const exifOrientation = await getImageOrientation(file);
-    const initialImage = await project.get_layer(0);
-    const img = new Image();
-    await new Promise<void>((resolve) => {
-      img.onload = () => resolve();
-      img.src = URL.createObjectURL(new Blob([initialImage]));
-    });
-
     if (exifOrientation >= 5 && exifOrientation <= 8) {
       await project.transform_layer(0, { Rotate90: null });
     }
-
-    setImageProject(project);
+    
+    projectsRef.current.set(tabIndex, project);
+    console.log('Projects after update:', projectsRef.current);
+    
     return project;
   }, []);
 
-  const applyTransformation = useCallback(async (transformation: unknown, layerIndex = 0) => {
-    if (!imageProject) return null;
+  const applyTransformation = useCallback(async (transformation: unknown, tabIndex: number, layerIndex = 0) => {
+    console.log('Applying transformation for tab:', tabIndex);
+    console.log('Available projects:', projectsRef.current);
+    const project = projectsRef.current.get(tabIndex);
+    if (!project) {
+      // Re-create project if it's lost
+      const currentTab = document.querySelector(`img[data-tab="${tabIndex}"]`) as HTMLImageElement;
+      if (currentTab?.src) {
+        const response = await fetch(currentTab.src);
+        const arrayBuffer = await response.arrayBuffer();
+        const newProject = await createImageProject();
+        await newProject.add_layer(new Uint8Array(arrayBuffer));
+        projectsRef.current.set(tabIndex, newProject);
+        await newProject.transform_layer(layerIndex, transformation);
+        const result = await newProject.get_layer(layerIndex);
+        return URL.createObjectURL(new Blob([result], { type: 'image/png' }));
+      }
+      console.error('No project found for tab:', tabIndex);
+      return null;
+    }
     
-    const originalImage = await imageProject.get_layer(layerIndex);
-    const img = new Image();
-    await new Promise(resolve => {
-        img.onload = resolve;
-        img.src = URL.createObjectURL(new Blob([originalImage]));
-    });
-    
-    await imageProject.transform_layer(layerIndex, transformation);
-    const result = await imageProject.get_layer(layerIndex);
-    
-    const transformedImg = new Image();
-    await new Promise(resolve => {
-        transformedImg.onload = resolve;
-        transformedImg.src = URL.createObjectURL(new Blob([result]));
-    });
-    
+    await project.transform_layer(layerIndex, transformation);
+    const result = await project.get_layer(layerIndex);
     return URL.createObjectURL(new Blob([result], { type: 'image/png' }));
-  }, [imageProject]);
+  }, []);
 
-  const exportImage = useCallback(async (format: string, layerIndex = 0) => {
-    if (!imageProject) return null;
-    const result = await imageProject.get_layer(layerIndex, format);
+  const exportImage = useCallback(async (format: string, tabIndex: number, layerIndex = 0) => {
+    const project = projectsRef.current.get(tabIndex);
+    if (!project) return null;
+    const result = await project.get_layer(layerIndex, format);
     return URL.createObjectURL(new Blob([result], { type: `image/${format}` }));
-  }, [imageProject]);
+  }, []);
 
   return {
-    imageProject,
+    projects: projectsRef.current,
     loadImage,
     applyTransformation,
     exportImage
@@ -73,7 +74,7 @@ export function useImageEditor() {
  * - 7: Rotated 90° CW and flipped horizontally
  * - 8: Rotated 90° CCW
  */
-async function getImageOrientation(file: File): Promise<number> {
+export async function getImageOrientation(file: File): Promise<number> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = function(e) {

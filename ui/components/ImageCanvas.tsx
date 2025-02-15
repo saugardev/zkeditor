@@ -153,6 +153,7 @@ export function ImageCanvas({
               alt="Editor canvas"
               className="max-w-none"
               draggable={false}
+              data-tab={activeTab}
               onLoad={(e) => {
                 const img = e.currentTarget;
                 setImageDimensions({
