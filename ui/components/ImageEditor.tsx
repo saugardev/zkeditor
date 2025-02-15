@@ -1,10 +1,21 @@
-/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useImageEditor } from '@/hooks/useImageEditor';
-import { useState, useRef } from 'react';
-import { TextOverlayControls } from './TextOverlayControls';
-import { SelectionRect } from './SelectionRect';
+import { useState } from 'react';
+import { 
+  ImageIcon, 
+  Wand2, 
+  RotateCw, 
+  FlipHorizontal2, 
+  SunMedium, 
+  Contrast,
+  Droplet,
+  Type,
+  SquareDashed
+} from 'lucide-react';
+import { TransformPanel } from '@/components/TransformPanel';
+import { LayersPanel } from '@/components/LayersPanel';
+import { ImageCanvas } from '@/components/ImageCanvas';
 
 interface RegionSelection {
   x: number;
@@ -13,39 +24,26 @@ interface RegionSelection {
   height: number;
 }
 
-interface Transformation {
-  name: string;
-  type: string;
-  value?: number;
-  directApply?: boolean;
-}
+const tools = [
+  { icon: ImageIcon, name: 'Upload', type: 'upload' },
+  { icon: SquareDashed, name: 'Selection', type: 'selection' },
+  { icon: Wand2, name: 'Grayscale', type: 'Grayscale' },
+  { icon: RotateCw, name: 'Rotate', type: 'Rotate90' },
+  { icon: FlipHorizontal2, name: 'Flip', type: 'FlipHorizontal' },
+  { icon: SunMedium, name: 'Brighten', type: 'Brighten' },
+  { icon: Contrast, name: 'Contrast', type: 'Contrast' },
+  { icon: Droplet, name: 'Blur', type: 'Blur' },
+  { icon: Type, name: 'Text', type: 'text' }
+];
 
 export default function ImageEditor() {
   const { loadImage, applyTransformation, exportImage } = useImageEditor();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState('png');
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [selection, setSelection] = useState<RegionSelection | null>(null);
-  const [selectedTransform, setSelectedTransform] = useState<string | null>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const transformations: Transformation[] = [
-    { name: 'Grayscale', type: 'Grayscale' },
-    { name: 'Rotate 90°', type: 'Rotate90', directApply: true },
-    { name: 'Rotate 180°', type: 'Rotate180', directApply: true },
-    { name: 'Rotate 270°', type: 'Rotate270', directApply: true },
-    { name: 'Flip Vertical', type: 'FlipVertical', directApply: true },
-    { name: 'Flip Horizontal', type: 'FlipHorizontal', directApply: true },
-    { name: 'Brighten', type: 'Brighten', value: 10 },
-    { name: 'Contrast', type: 'Contrast', value: 1.5 },
-    { name: 'Blur', type: 'Blur', value: 10.0 }
-  ];
-
-  const formats = [
-    { value: 'png', label: 'PNG' },
-    { value: 'jpeg', label: 'JPEG' },
-    { value: 'webp', label: 'WebP' }
-  ];
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -173,108 +171,74 @@ export default function ImageEditor() {
   };
 
   const handleExport = async () => {
-    const url = await exportImage(selectedFormat);
+    const url = await exportImage(selectedTool === 'png' ? 'png' : 'jpeg');
     if (url) {
       const link = document.createElement('a');
       link.href = url;
-      link.download = `edited-image.${selectedFormat}`;
+      link.download = `edited-image.${selectedTool === 'png' ? 'png' : 'jpeg'}`;
       link.click();
     }
   };
 
+  const handleToolClick = (toolType: string) => {
+    setSelectedTool(toolType);
+    if (toolType === 'upload') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.files) {
+          handleFileUpload({ target } as React.ChangeEvent<HTMLInputElement>);
+        }
+      };
+      input.click();
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <input 
-        type="file" 
-        accept="image/*" 
-        onChange={handleFileUpload}
-        className="mb-4"
-      />
-      
-      <div className="flex flex-wrap gap-2">
-        {transformations.map((t) => (
+    <div className="h-screen flex">
+      <div className="w-16 bg-neutral-900 flex flex-col gap-2 p-2">
+        {tools.map((tool) => (
           <button
-            key={t.type}
-            onClick={() => {
-              if (t.directApply) {
-                handleTransform(t.type);
-              } else {
-                setSelectedTransform(t.type);
-              }
-            }}
-            disabled={isLoading}
-            className={`px-4 py-2 rounded ${
-              selectedTransform === t.type && !t.directApply
+            key={tool.type}
+            onClick={() => handleToolClick(tool.type)}
+            className={`p-2 rounded-lg transition-colors ${
+              selectedTool === tool.type 
                 ? 'bg-blue-500 text-white' 
-                : 'bg-foreground text-background'
-            } hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`}
+                : 'text-neutral-400 hover:bg-neutral-800'
+            }`}
+            title={tool.name}
           >
-            {isLoading ? 'Processing...' : t.name}
+            <tool.icon size={20} />
           </button>
         ))}
       </div>
-      
-      <div className="relative flex justify-center">
-        <div className="max-h-[80vh] w-auto relative">
-          <img
-            ref={imageRef}
-            src={imageUrl || undefined}
-            alt="Edited image" 
-            className="h-full w-auto object-contain"
-            style={{ 
-              maxWidth: '100%',
-              objectFit: 'contain'
-            }}
+
+      <div className="flex-1 flex">
+        <div className="flex-1 bg-neutral-800 relative overflow-hidden">
+          <ImageCanvas
+            imageUrl={imageUrl}
+            zoom={zoom}
+            pan={pan}
+            onZoomChange={setZoom}
+            onPanChange={setPan}
+            selection={selection}
+            onSelectionChange={setSelection}
+            isLoading={isLoading}
+            selectedTool={selectedTool}
           />
-          {isLoading && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <div className="text-white">Processing...</div>
-            </div>
-          )}
-          {selectedTransform && (
-            <SelectionRect
-              selection={selection}
-              onSelectionChange={setSelection}
-              imageRef={imageRef as React.RefObject<HTMLImageElement>}
-            />
-          )}
         </div>
-        {selection && selectedTransform && (
-          <button
-            onClick={() => {
-              handleTransform(selectedTransform, undefined, undefined, selection);
-              setSelection(null);
-              setSelectedTransform(null);
-            }}
-            className="absolute bottom-4 right-4 px-4 py-2 bg-blue-500 text-white rounded"
-          >
-            Apply
-          </button>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-[1fr,300px] gap-4">
-        <div>
-          <TextOverlayControls onApply={handleTextOverlay} />
+
+        <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4">
+          <TransformPanel
+            selectedTool={selectedTool}
+            onTransform={handleTransform}
+            onTextOverlay={handleTextOverlay}
+            onExport={handleExport}
+          />
+          <LayersPanel />
         </div>
-      </div>
-      
-      <div className="flex items-center gap-2 mt-4">
-        <select 
-          value={selectedFormat}
-          onChange={(e) => setSelectedFormat(e.target.value)}
-          className="px-2 py-1 rounded border border-foreground/20"
-        >
-          {formats.map(f => (
-            <option key={f.value} value={f.value}>{f.label}</option>
-          ))}
-        </select>
-        <button
-          onClick={handleExport}
-          className="px-4 py-2 bg-foreground text-background rounded hover:opacity-90"
-        >
-          Export
-        </button>
       </div>
     </div>
   );
