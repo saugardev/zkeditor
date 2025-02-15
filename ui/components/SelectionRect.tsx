@@ -54,7 +54,7 @@ export function SelectionRect({ selection, onSelectionChange, imageRef, zoom }: 
     >
       {selection && (
         <div
-          className="absolute border-2 border-blue-500 bg-blue-500/20"
+          className="absolute border border-blue-500 bg-blue-500/20"
           style={{
             left: selection.x,
             top: selection.y,

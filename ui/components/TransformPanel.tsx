@@ -28,8 +28,6 @@ export function TransformPanel({ selectedTool, onTransform, onTextOverlay }: Tra
 
   return (
     <div className="text-white">
-      <h3 className="text-lg font-semibold mb-4">Adjustments</h3>
-      
       {selectedTool === 'text' ? (
         <div className="flex flex-col gap-3">
           <input
@@ -70,7 +68,7 @@ export function TransformPanel({ selectedTool, onTransform, onTextOverlay }: Tra
           />
           <button
             onClick={() => onTextOverlay({ TextOverlay: { ...textParams, color: textParams.color.replace('#', '') } })}
-            className="bg-blue-500 px-3 py-1 rounded"
+            className="bg-neutral-800 px-3 py-1 rounded"
           >
             Add Text
           </button>
@@ -78,7 +76,7 @@ export function TransformPanel({ selectedTool, onTransform, onTextOverlay }: Tra
       ) : (
         <button
           onClick={() => onTransform(selectedTool)}
-          className="bg-blue-500 px-3 py-1 rounded"
+          className="bg-neutral-800 px-3 py-1 rounded"
         >
           Apply {selectedTool}
         </button>

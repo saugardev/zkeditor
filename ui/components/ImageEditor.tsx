@@ -11,11 +11,13 @@ import {
   Contrast,
   Droplet,
   Type,
-  SquareDashed
+  SquareDashed,
+  Menu
 } from 'lucide-react';
 import { TransformPanel } from '@/components/TransformPanel';
-import { LayersPanel } from '@/components/LayersPanel';
 import { ImageCanvas } from '@/components/ImageCanvas';
+import { Navbar } from './Navbar';
+import { useTabs } from '@/contexts/TabsContext';
 
 interface RegionSelection {
   x: number;
@@ -37,27 +39,25 @@ const tools = [
 ];
 
 export default function ImageEditor() {
+  const { tabs, activeTab, isLoading, setActiveTab, updateTabState } = useTabs();
   const { loadImage, applyTransformation, exportImage } = useImageEditor();
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
-  const [selection, setSelection] = useState<RegionSelection | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isTabLoading, setIsTabLoading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     try {
-      setIsLoading(true);
+      setIsTabLoading(true);
       const project = await loadImage(file);
       const initialImage = await project.get_layer(0);
-      setImageUrl(URL.createObjectURL(new Blob([initialImage], { type: 'image/png' })));
+      const imageUrl = URL.createObjectURL(new Blob([initialImage], { type: 'image/png' }));
+      updateTabState(activeTab, { imageUrl });
     } catch (error) {
       console.error('File upload failed:', error);
     } finally {
-      setIsLoading(false);
+      setIsTabLoading(false);
     }
   };
 
@@ -68,7 +68,7 @@ export default function ImageEditor() {
     region?: RegionSelection
   ) => {
     try {
-      setIsLoading(true);
+      setIsTabLoading(true);
       const noRegionTransforms = ['Rotate90', 'Rotate180', 'Rotate270'];
       
       let transformation;
@@ -125,19 +125,14 @@ export default function ImageEditor() {
       
       const newUrl = await applyTransformation(transformation);
       if (newUrl) {
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            setImageUrl(newUrl);
-            resolve();
-          };
-          img.src = newUrl;
-        });
+        const updatedTabs = [...tabs];
+        updatedTabs[activeTab] = { ...updatedTabs[activeTab], imageUrl: newUrl };
+        setActiveTab(activeTab);
       }
     } catch (error) {
       console.error('Transform failed:', error);
     } finally {
-      setIsLoading(false);
+      setIsTabLoading(false);
     }
   };
 
@@ -151,22 +146,17 @@ export default function ImageEditor() {
     }
   }) => {
     try {
-      setIsLoading(true);
+      setIsTabLoading(true);
       const newUrl = await applyTransformation(params);
       if (newUrl) {
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            setImageUrl(newUrl);
-            resolve();
-          };
-          img.src = newUrl;
-        });
+        const updatedTabs = [...tabs];
+        updatedTabs[activeTab] = { ...updatedTabs[activeTab], imageUrl: newUrl };
+        setActiveTab(activeTab);
       }
     } catch (error) {
       console.error('Text overlay failed:', error);
     } finally {
-      setIsLoading(false);
+      setIsTabLoading(false);
     }
   };
 
@@ -196,48 +186,88 @@ export default function ImageEditor() {
     }
   };
 
+  const handleZoomChange = (newZoom: number) => {
+    updateTabState(activeTab, { zoom: newZoom });
+  };
+
+  const handlePanChange = (newPan: { x: number; y: number }) => {
+    updateTabState(activeTab, { pan: newPan });
+  };
+
+  const handleSelectionChange = (newSelection: RegionSelection | null) => {
+    updateTabState(activeTab, { selection: newSelection });
+  };
+
+  const handleTabSwitch = async (index: number) => {
+    setIsTabLoading(true);
+    setActiveTab(index);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    setIsTabLoading(false);
+  };
+
   return (
-    <div className="h-screen flex">
-      <div className="w-16 bg-neutral-900 flex flex-col gap-2 p-2">
-        {tools.map((tool) => (
-          <button
-            key={tool.type}
-            onClick={() => handleToolClick(tool.type)}
-            className={`p-2 rounded-lg transition-colors ${
-              selectedTool === tool.type 
-                ? 'bg-blue-500 text-white' 
-                : 'text-neutral-400 hover:bg-neutral-800'
-            }`}
-            title={tool.name}
-          >
-            <tool.icon size={20} />
-          </button>
-        ))}
-      </div>
-
+    <div className="h-screen flex flex-col">
+      <Navbar />
       <div className="flex-1 flex">
-        <div className="flex-1 bg-neutral-800 relative overflow-hidden">
-          <ImageCanvas
-            imageUrl={imageUrl}
-            zoom={zoom}
-            pan={pan}
-            onZoomChange={setZoom}
-            onPanChange={setPan}
-            selection={selection}
-            onSelectionChange={setSelection}
-            isLoading={isLoading}
-            selectedTool={selectedTool}
-          />
+        <div className="w-16 bg-neutral-900 flex flex-col gap-2 p-2 border-r border-neutral-700">
+          {tools.map((tool) => (
+            <button
+              key={tool.type}
+              onClick={() => handleToolClick(tool.type)}
+              className={`p-2 rounded-lg transition-colors flex items-center justify-center${
+                selectedTool === tool.type 
+                  ? ' bg-neutral-800 text-white' 
+                  : ' text-neutral-400 hover:bg-neutral-800'
+              }`}
+              title={tool.name}
+            >
+              <tool.icon size={20} />
+            </button>
+          ))}
         </div>
-
-        <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4">
-          <TransformPanel
-            selectedTool={selectedTool}
-            onTransform={handleTransform}
-            onTextOverlay={handleTextOverlay}
-            onExport={handleExport}
-          />
-          <LayersPanel />
+  
+        <div className="flex-1 flex flex-col">
+          <div className="flex border-b border-neutral-700 bg-neutral-900">
+            {tabs.map((tab, index) => (
+              <button
+                key={index}
+                onClick={() => handleTabSwitch(index)}
+                className={`px-4 py-2 flex items-center gap-2 text-neutral-400 text-sm ${
+                  activeTab === index ? 'bg-neutral-800' : 'hover:bg-neutral-800'
+                }`}
+              >
+                <Menu size={14} />
+                {tab.name}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex-1 flex">
+            <div className="flex-1 bg-neutral-800 relative overflow-hidden">
+              <ImageCanvas
+                imageUrl={tabs[activeTab]?.imageUrl}
+                zoom={tabs[activeTab]?.zoom ?? 1}
+                pan={tabs[activeTab]?.pan ?? { x: 0, y: 0 }}
+                onZoomChange={handleZoomChange}
+                onPanChange={handlePanChange}
+                selection={tabs[activeTab]?.selection ?? null}
+                onSelectionChange={handleSelectionChange}
+                isLoading={isLoading || isTabLoading}
+                selectedTool={selectedTool}
+                activeTab={activeTab}
+                tabs={tabs}
+              />
+            </div>
+  
+            <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4">
+              <TransformPanel
+                selectedTool={selectedTool}
+                onTransform={handleTransform}
+                onTextOverlay={handleTextOverlay}
+                onExport={handleExport}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

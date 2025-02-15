@@ -36,7 +36,8 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
       <div 
         className="absolute top-0 left-0 h-6 bg-neutral-900 z-10"
         style={{ 
-          right: 0
+          right: 0,
+          userSelect: 'none'
         }}
       >
         <svg width="100%" height={rulerSize} className="text-neutral-400">
@@ -79,9 +80,10 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
       </div>
 
       <div 
-        className="absolute top-0 left-0 w-6 bg-neutral-900 z-10"
+        className="absolute -top-9 left-0 w-6 bg-neutral-900 z-10"
         style={{ 
-          bottom: 0
+          bottom: 0,
+          userSelect: 'none'
         }}
       >
         <svg height="100%" width={rulerSize} className="text-neutral-400">
@@ -124,7 +126,7 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
         </svg>
       </div>
 
-      <div className="absolute top-0 left-0 w-6 bg-neutral-900 z-10 h-6">
+      <div className="absolute top-0 left-0 w-6 bg-neutral-900 z-10 h-6 select-none">
       </div>
     </>
   );

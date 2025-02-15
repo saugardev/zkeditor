@@ -14,6 +14,8 @@ interface ImageCanvasProps {
   onSelectionChange: (selection: { x: number; y: number; width: number; height: number } | null) => void;
   isLoading: boolean;
   selectedTool: string | null;
+  activeTab: number;
+  tabs: { name: string; imageUrl: string | null; zoom: number; pan: { x: number; y: number }; isNew?: boolean }[];
 }
 
 export function ImageCanvas({
@@ -25,14 +27,16 @@ export function ImageCanvas({
   selection,
   onSelectionChange,
   isLoading,
-  selectedTool
+  selectedTool,
+  activeTab,
+  tabs
 }: ImageCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
-  const [lastFittedImageUrl, setLastFittedImageUrl] = useState<string | null>(null);
+  const [hasInitiallyFit, setHasInitiallyFit] = useState(false);
 
   useEffect(() => {
     if (imageRef.current) {
@@ -48,7 +52,7 @@ export function ImageCanvas({
       e.preventDefault();
       const zoomFactor = 0.03;
       const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
-      const newZoom = Math.min(Math.max(zoom * (1 + delta), 0.1), 5);
+      const newZoom = Math.min(Math.max(zoom * (1 + delta), 0.1), 10);
       onZoomChange(newZoom);
     }
   };
@@ -103,9 +107,9 @@ export function ImageCanvas({
     
     let newZoom;
     if (containerAspect > imageAspect) {
-      newZoom = (container.clientHeight * 0.9) / image.naturalHeight;
+      newZoom = Math.min((container.clientHeight * 0.9) / image.naturalHeight, 10);
     } else {
-      newZoom = (container.clientWidth * 0.9) / image.naturalWidth;
+      newZoom = Math.min((container.clientWidth * 0.9) / image.naturalWidth, 10);
     }
     
     onZoomChange(newZoom);
@@ -113,11 +117,11 @@ export function ImageCanvas({
   }, [onZoomChange, onPanChange]);
 
   useEffect(() => {
-    if (imageUrl && imageUrl !== lastFittedImageUrl) {
+    if (imageUrl && (!hasInitiallyFit || (tabs?.[activeTab]?.isNew))) {
       fitToBounds();
-      setLastFittedImageUrl(imageUrl);
+      setHasInitiallyFit(true);
     }
-  }, [imageUrl, lastFittedImageUrl, fitToBounds]);
+  }, [imageUrl, hasInitiallyFit, fitToBounds, activeTab, tabs]);
 
   return (
     <div
@@ -129,7 +133,7 @@ export function ImageCanvas({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {imageUrl && (
+      {imageUrl && !isLoading && (
         <>
           <Rulers
             width={imageDimensions.width}
@@ -182,7 +186,7 @@ export function ImageCanvas({
             )}
           </div>
           
-          <div className="absolute bottom-8 right-2 bg-neutral-900 px-2 py-1 rounded text-white text-sm flex items-center gap-2">
+          <div className="absolute bottom-2 right-2 bg-neutral-900 px-2 py-1 rounded text-white text-sm flex items-center gap-2">
             <span>{Math.round(zoom * 100)}% | {imageDimensions.width}x{imageDimensions.height}px</span>
             <button
               onClick={fitToBounds}
