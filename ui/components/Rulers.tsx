@@ -18,7 +18,6 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
   const { major: step, minor: minorStep } = getStepSize(zoom);
   const scaledMinorStep = minorStep * zoom;
 
-  // Adjust for the centered image position and ruler offset
   const imageOffset = {
     x: window.innerWidth / 2 - width * zoom / 2 + pan.x - 136,
     y: window.innerHeight / 2 - height * zoom / 2 + pan.y + rulerSize
@@ -101,7 +100,7 @@ export function Rulers({ width, height, zoom, pan }: RulersProps) {
                   strokeWidth="1"
                 />
                 <text
-                  x={rulerSize - 4}
+                  x={rulerSize + 10}
                   y={12}
                   fontSize="12px"
                   fill="currentColor"

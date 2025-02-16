@@ -234,6 +234,7 @@ export default function ImageEditor() {
         </div>
   
         <div className="flex-1 flex flex-col">
+          {tabs.length > 0 && (
           <div className="flex border-b border-neutral-700 bg-neutral-900">
             {tabs.map((tab, index) => (
               <button
@@ -248,6 +249,7 @@ export default function ImageEditor() {
               </button>
             ))}
           </div>
+          )}
           
           <div className="flex-1 flex">
             <div className="flex-1 bg-neutral-800 relative overflow-hidden">
@@ -266,17 +268,15 @@ export default function ImageEditor() {
               />
             </div>
   
-            <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4">
-              <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4">
-                <TransformPanel
-                  selectedTool={selectedTool}
-                  onTransform={handleTransform}
-                  onTextOverlay={handleTextOverlay}
-                  onExport={handleExport}
-                  selection={tabs[activeTab]?.selection ?? null}
-                  onSelectionChange={handleSelectionChange}
-                />
-              </div>
+            <div className="w-64 bg-neutral-900 p-4 flex flex-col gap-4 border-l border-neutral-700">
+              <TransformPanel
+                selectedTool={selectedTool}
+                onTransform={handleTransform}
+                onTextOverlay={handleTextOverlay}
+                onExport={handleExport}
+                selection={tabs[activeTab]?.selection ?? null}
+                onSelectionChange={handleSelectionChange}
+              />
             </div>
           </div>
         </div>
