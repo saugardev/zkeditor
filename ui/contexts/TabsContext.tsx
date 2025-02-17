@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext } from 'react';
 
 interface Tab {
+  id: string;
   name: string;
   imageUrl: string | null;
   zoom: number;
@@ -14,10 +15,11 @@ interface TabsContextType {
   activeTab: number;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  addTab: (tab: Omit<Tab, 'zoom' | 'pan'>) => void;
+  addTab: (tab: Omit<Tab, 'zoom' | 'pan' | 'id'>) => void;
   removeTab: (index: number) => void;
   setActiveTab: (index: number) => void;
   updateTabState: (index: number, state: Partial<Tab>) => void;
+  reorderTabs: (newTabs: Tab[]) => void;
 }
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined);
@@ -35,9 +37,15 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const addTab = (tab: Omit<Tab, 'zoom' | 'pan'>) => {
+  const addTab = (tab: Omit<Tab, 'zoom' | 'pan' | 'id'>) => {
     const newTabIndex = tabs.length;
-    setTabs(prev => [...prev, { ...tab, zoom: 1, pan: { x: 0, y: 0 }, isNew: true }]);
+    setTabs(prev => [...prev, { 
+      ...tab, 
+      id: crypto.randomUUID(),
+      zoom: 1, 
+      pan: { x: 0, y: 0 }, 
+      isNew: true 
+    }]);
     setActiveTab(newTabIndex);
   };
 
@@ -60,6 +68,10 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
     ));
   };
 
+  const reorderTabs = (newTabs: Tab[]) => {
+    setTabs(newTabs);
+  };
+
   return (
     <TabsContext.Provider value={{ 
       tabs, 
@@ -69,7 +81,8 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
       addTab, 
       removeTab, 
       setActiveTab,
-      updateTabState 
+      updateTabState,
+      reorderTabs
     }}>
       {children}
     </TabsContext.Provider>

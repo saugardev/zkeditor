@@ -18,6 +18,7 @@ import { TransformPanel } from '@/components/TransformPanel';
 import { ImageCanvas } from '@/components/ImageCanvas';
 import { Navbar } from './Navbar';
 import { useTabs } from '@/contexts/TabsContext';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 interface RegionSelection {
   x: number;
@@ -39,7 +40,7 @@ const tools = [
 ];
 
 export default function ImageEditor() {
-  const { tabs, activeTab, isLoading, setActiveTab, updateTabState } = useTabs();
+  const { tabs, activeTab, isLoading, setActiveTab, updateTabState, reorderTabs } = useTabs();
   const { loadImage, applyTransformation, exportImage } = useImageEditor();
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [isTabLoading, setIsTabLoading] = useState(false);
@@ -210,6 +211,21 @@ export default function ImageEditor() {
     setIsTabLoading(false);
   };
 
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    
+    const newTabs = Array.from(tabs);
+    const [reorderedTab] = newTabs.splice(result.source.index, 1);
+    newTabs.splice(result.destination.index, 0, reorderedTab);
+    
+    const newActiveTab = result.source.index === activeTab 
+      ? result.destination.index 
+      : activeTab;
+    
+    setActiveTab(newActiveTab);
+    reorderTabs(newTabs);
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <Navbar />
@@ -233,20 +249,40 @@ export default function ImageEditor() {
   
         <div className="flex-1 flex flex-col">
           {tabs.length > 0 && (
-          <div className="flex border-b border-neutral-700 bg-neutral-900">
-            {tabs.map((tab, index) => (
-              <button
-                key={index}
-                onClick={() => handleTabSwitch(index)}
-                className={`px-4 py-2 flex items-center gap-2 text-neutral-400 text-sm ${
-                  activeTab === index ? 'bg-neutral-800' : 'hover:bg-neutral-800'
-                }`}
-              >
-                <Menu size={14} />
-                {tab.name}
-              </button>
-            ))}
-          </div>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="tabs" direction="horizontal">
+                {(provided) => (
+                  <div 
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="flex border-b border-neutral-700 bg-neutral-900"
+                  >
+                    {tabs.map((tab, index) => (
+                      <Draggable key={tab.id} draggableId={tab.id} index={index}>
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                          >
+                            <button
+                              onClick={() => handleTabSwitch(index)}
+                              className={`px-4 py-2 flex items-center gap-2 text-neutral-400 text-sm ${
+                                activeTab === index ? 'bg-neutral-800' : 'hover:bg-neutral-800'
+                              }`}
+                            >
+                              <Menu size={14} />
+                              {tab.name}
+                            </button>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )}
           
           <div className="flex-1 flex">
