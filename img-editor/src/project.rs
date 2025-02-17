@@ -52,7 +52,8 @@ impl ImageProject {
         
         Ok(ImageOutput {
             final_image,
-            transformation_count: input.transformations.len()
+            transformation_count: input.transformations.len(),
+            id: input.id.clone()
         })
     }
 }

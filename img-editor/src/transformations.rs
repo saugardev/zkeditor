@@ -58,11 +58,13 @@ pub enum Transformation {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageInput {
     pub image_data: Vec<u8>,
-    pub transformations: Vec<Transformation>
+    pub transformations: Vec<Transformation>,
+    pub id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageOutput {
     pub final_image: Vec<u8>,
-    pub transformation_count: usize
+    pub transformation_count: usize,
+    pub id: String,
 }

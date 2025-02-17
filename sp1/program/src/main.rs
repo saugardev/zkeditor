@@ -45,7 +45,8 @@ pub fn main() {
     // Create and commit output
     let output = ImageOutput {
         final_image,
-        transformation_count: input.transformations.len()
+        transformation_count: input.transformations.len(),
+        id: input.id,
     };
     
     io::commit(&output);

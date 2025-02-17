@@ -1,13 +1,14 @@
 use axum::{
-    extract::Multipart,
+    Json,
     routing::{get, post},
     Router,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sp1_sdk::{ProverClient, SP1Stdin};
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
+use reqwest;
 
 fn load_elf() -> Vec<u8> {
     let target_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -18,11 +19,19 @@ fn load_elf() -> Vec<u8> {
         .expect("Failed to read ELF file. Did you run 'cargo prove build' in the program directory?")
 }
 
+#[derive(Deserialize)]
+struct ProofRequest {
+    asset_uri: String,
+    id: String,
+    transformations: Vec<img_editor_lib::Transformation>,
+}
+
 #[derive(Serialize)]
 struct ProofResponse {
     success: bool,
     message: String,
     proof: Option<String>,
+    id: String,
 }
 
 #[tokio::main]
@@ -48,22 +57,21 @@ async fn health_check() -> &'static str {
     "OK"
 }
 
-async fn generate_proof(mut multipart: Multipart) -> axum::Json<ProofResponse> {
-    let mut image_data = Vec::new();
-    
-    while let Some(field) = multipart.next_field().await.unwrap() {
-        if field.name().unwrap() == "image" {
-            image_data = field.bytes().await.unwrap().to_vec();
+async fn generate_proof(
+    Json(request): Json<ProofRequest>,
+) -> Json<ProofResponse> {
+    // Fetch image from URI
+    let image_data = match reqwest::get(&request.asset_uri).await {
+        Ok(response) => response.bytes().await.unwrap().to_vec(),
+        Err(e) => {
+            return Json(ProofResponse {
+                success: false,
+                message: format!("Failed to fetch image: {}", e),
+                proof: None,
+                id: request.id,
+            });
         }
-    }
-
-    if image_data.is_empty() {
-        return axum::Json(ProofResponse {
-            success: false,
-            message: "No image data provided".to_string(),
-            proof: None,
-        });
-    }
+    };
 
     // Setup the prover client
     let client = ProverClient::from_env();
@@ -72,10 +80,11 @@ async fn generate_proof(mut multipart: Multipart) -> axum::Json<ProofResponse> {
     // Setup the program
     let (pk, vk) = client.setup(&elf_data);
 
-    // Create input with image data
+    // Create input with image data and transformations
     let input = img_editor_lib::ImageInput {
         image_data,
-        transformations: vec![],
+        transformations: request.transformations,
+        id: request.id.clone(),
     };
 
     // Setup stdin with serialized input
@@ -85,25 +94,27 @@ async fn generate_proof(mut multipart: Multipart) -> axum::Json<ProofResponse> {
     // Generate the proof
     match client.prove(&pk, &stdin).run() {
         Ok(proof) => {
-            // Verify the proof
             if let Err(e) = client.verify(&proof, &vk) {
-                return axum::Json(ProofResponse {
+                return Json(ProofResponse {
                     success: false,
                     message: format!("Proof verification failed: {}", e),
                     proof: None,
+                    id: request.id,
                 });
             }
 
-            axum::Json(ProofResponse {
+            Json(ProofResponse {
                 success: true,
                 message: "Proof generated and verified successfully".to_string(),
                 proof: Some(hex::encode(proof.bytes())),
+                id: request.id,
             })
         }
-        Err(e) => axum::Json(ProofResponse {
+        Err(e) => Json(ProofResponse {
             success: false,
             message: format!("Failed to generate proof: {}", e),
             proof: None,
+            id: request.id,
         }),
     }
 }
