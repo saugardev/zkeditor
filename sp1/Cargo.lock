@@ -794,6 +794,7 @@ dependencies = [
  "matchit",
  "memchr",
  "mime",
+ "multer",
  "percent-encoding",
  "pin-project-lite",
  "rustversion",
@@ -1646,6 +1647,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
+name = "encoding_rs"
+version = "0.8.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "enum-map"
 version = "2.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1771,31 +1781,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "fibonacci-lib"
-version = "0.1.0"
-dependencies = [
- "alloy-sol-types 0.7.7",
-]
-
-[[package]]
-name = "fibonacci-script"
-version = "0.1.0"
-dependencies = [
- "alloy-sol-types 0.7.7",
- "bincode",
- "clap",
- "dotenv",
- "fibonacci-lib",
- "hex",
- "img-editor-lib",
- "serde",
- "serde_json",
- "sp1-build",
- "sp1-sdk",
- "tracing",
 ]
 
 [[package]]
@@ -2358,6 +2343,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "img-editor-api"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "dotenv",
+ "hex",
+ "img-editor-lib",
+ "serde",
+ "serde_json",
+ "sp1-build",
+ "sp1-sdk",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
 name = "img-editor-lib"
 version = "0.1.0"
 dependencies = [
@@ -2379,6 +2380,23 @@ dependencies = [
  "serde",
  "sp1-derive",
  "sp1-zkvm",
+]
+
+[[package]]
+name = "img-editor-script"
+version = "0.1.0"
+dependencies = [
+ "alloy-sol-types 0.7.7",
+ "bincode",
+ "clap",
+ "dotenv",
+ "hex",
+ "img-editor-lib",
+ "serde",
+ "serde_json",
+ "sp1-build",
+ "sp1-sdk",
+ "tracing",
 ]
 
 [[package]]
@@ -2749,6 +2767,23 @@ dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes",
+ "encoding_rs",
+ "futures-util",
+ "http",
+ "httparse",
+ "memchr",
+ "mime",
+ "spin",
+ "version_check",
 ]
 
 [[package]]
@@ -5460,6 +5495,22 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2873938d487c3cfb9aed7546dc9f2711d867c9f90c46b889989a2cb84eba6b4f"
 dependencies = [
+ "tower-layer",
+ "tower-service",
+]
+
+[[package]]
+name = "tower-http"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
+dependencies = [
+ "bitflags 2.6.0",
+ "bytes",
+ "http",
+ "http-body",
+ "http-body-util",
+ "pin-project-lite",
  "tower-layer",
  "tower-service",
 ]

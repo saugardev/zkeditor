@@ -1,0 +1,18 @@
+[package]
+name = "img-editor-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7", features = ["multipart"] }
+tokio = { version = "1.0", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sp1-sdk = "4.0.0"
+img-editor-lib = { workspace = true }
+dotenv = "0.15"
+hex = "0.4"
+
+[build-dependencies]
+sp1-build = "4.0.0"

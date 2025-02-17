@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "lib",
+    "api",
     "program",
-    "script",
+    "script"
 ]
 resolver = "2"
 
