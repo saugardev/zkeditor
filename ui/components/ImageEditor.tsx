@@ -258,7 +258,11 @@ export default function ImageEditor() {
                     className="flex border-b border-neutral-700 bg-neutral-900"
                   >
                     {tabs.map((tab, index) => (
-                      <Draggable key={tab.id} draggableId={tab.id} index={index}>
+                      <Draggable 
+                        key={tab.id || `tab-${index}`} 
+                        draggableId={tab.id || `tab-${index}`} 
+                        index={index}
+                      >
                         {(provided) => (
                           <div
                             ref={provided.innerRef}

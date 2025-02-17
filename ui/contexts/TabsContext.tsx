@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
+import { useImageEditor } from '@/hooks/useImageEditor';
 
 interface Tab {
   id: string;
@@ -15,7 +16,7 @@ interface TabsContextType {
   activeTab: number;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  addTab: (tab: Omit<Tab, 'zoom' | 'pan' | 'id'>) => void;
+  addTab: (tab: Omit<Tab, 'zoom' | 'pan'>) => void;
   removeTab: (index: number) => void;
   setActiveTab: (index: number) => void;
   updateTabState: (index: number, state: Partial<Tab>) => void;
@@ -36,16 +37,11 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTab, setActiveTab] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const { reorderProjects } = useImageEditor();
 
-  const addTab = (tab: Omit<Tab, 'zoom' | 'pan' | 'id'>) => {
+  const addTab = (tab: Omit<Tab, 'zoom' | 'pan'>) => {
     const newTabIndex = tabs.length;
-    setTabs(prev => [...prev, { 
-      ...tab, 
-      id: crypto.randomUUID(),
-      zoom: 1, 
-      pan: { x: 0, y: 0 }, 
-      isNew: true 
-    }]);
+    setTabs(prev => [...prev, { ...tab, zoom: 1, pan: { x: 0, y: 0 }, isNew: true }]);
     setActiveTab(newTabIndex);
   };
 
@@ -69,7 +65,11 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const reorderTabs = (newTabs: Tab[]) => {
+    const oldIndices = tabs.map((_, i) => i);
+    const newIndices = newTabs.map(newTab => tabs.findIndex(oldTab => oldTab.id === newTab.id));
+    
     setTabs(newTabs);
+    reorderProjects(oldIndices, newIndices);
   };
 
   return (

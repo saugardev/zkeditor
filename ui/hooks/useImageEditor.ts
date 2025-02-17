@@ -54,11 +54,25 @@ export function useImageEditor() {
     return URL.createObjectURL(new Blob([result], { type: `image/${format}` }));
   }, []);
 
+  const reorderProjects = useCallback((oldIndices: number[], newIndices: number[]) => {
+    const newProjects = new Map<number, Awaited<ReturnType<typeof createImageProject>>>();
+    
+    oldIndices.forEach((oldIndex, i) => {
+      const project = projectsRef.current.get(oldIndex);
+      if (project) {
+        newProjects.set(newIndices[i], project);
+      }
+    });
+    
+    projectsRef.current = newProjects;
+  }, []);
+
   return {
     projects: projectsRef.current,
     loadImage,
     applyTransformation,
-    exportImage
+    exportImage,
+    reorderProjects
   };
 }
 
