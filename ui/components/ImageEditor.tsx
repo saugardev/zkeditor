@@ -154,11 +154,9 @@ export default function ImageEditor() {
   }) => {
     try {
       setIsTabLoading(true);
-  const newUrl = await applyTransformation(params, activeTab);
+      const newUrl = await applyTransformation(params, activeTab);
       if (newUrl) {
-        const updatedTabs = [...tabs];
-        updatedTabs[activeTab] = { ...updatedTabs[activeTab], imageUrl: newUrl };
-        setActiveTab(activeTab);
+        updateTabState(activeTab, { imageUrl: newUrl });
       }
     } catch (error) {
       console.error('Text overlay failed:', error);
