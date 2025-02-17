@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface RegionSelection {
   x: number;
@@ -35,7 +35,8 @@ export function TransformPanel({
     x: 10,
     y: 10,
     size: 24,
-    color: '#ffffff'
+    color: '#ffffff',
+    selecting: false
   });
 
   const [params, setParams] = useState<TransformParams>({
@@ -43,6 +44,22 @@ export function TransformPanel({
     Contrast: { contrast: 1.5 },
     Blur: { sigma: 10.0 }
   });
+
+  useEffect(() => {
+    const handleTextPosition = (e: CustomEvent) => {
+      if (textParams.selecting) {
+        setTextParams(prev => ({ 
+          ...prev, 
+          x: Math.round(e.detail.x), 
+          y: Math.round(e.detail.y),
+          selecting: false 
+        }));
+      }
+    };
+    
+    window.addEventListener('textposition', handleTextPosition as EventListener);
+    return () => window.removeEventListener('textposition', handleTextPosition as EventListener);
+  }, [textParams.selecting]);
 
   if (!selectedTool) return null;
 
@@ -126,21 +143,36 @@ export function TransformPanel({
             className="bg-neutral-800 px-2 py-1 rounded"
           />
           <div className="grid grid-cols-2 gap-2">
-            <input
-              type="number"
-              value={textParams.x}
-              onChange={(e) => setTextParams({ ...textParams, x: Number(e.target.value) })}
-              placeholder="X"
-              className="bg-neutral-800 px-2 py-1 rounded"
-            />
-            <input
-              type="number"
-              value={textParams.y}
-              onChange={(e) => setTextParams({ ...textParams, y: Number(e.target.value) })}
-              placeholder="Y"
-              className="bg-neutral-800 px-2 py-1 rounded"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={textParams.x}
+                onChange={(e) => setTextParams({ ...textParams, x: Number(e.target.value) })}
+                placeholder="X"
+                className="bg-neutral-800 px-2 py-1 rounded w-full"
+              />
+              <input
+                type="number"
+                value={textParams.y}
+                onChange={(e) => setTextParams({ ...textParams, y: Number(e.target.value) })}
+                placeholder="Y"
+                className="bg-neutral-800 px-2 py-1 rounded w-full"
+              />
+            </div>
           </div>
+          <button
+            onClick={() => {
+              setTextParams(prev => ({ ...prev, selecting: !prev.selecting }));
+              if (!textParams.selecting) {
+                onSelectionChange(null);
+              }
+            }}
+            className={`px-3 py-1 rounded ${
+              textParams.selecting ? 'bg-blue-600' : 'bg-neutral-800'
+            }`}
+          >
+            {textParams.selecting ? 'Cancel Selection' : 'Select Position'}
+          </button>
           <input
             type="number"
             value={textParams.size}
@@ -155,7 +187,15 @@ export function TransformPanel({
             className="w-full h-8"
           />
           <button
-            onClick={() => onTextOverlay({ TextOverlay: { ...textParams, color: textParams.color.replace('#', '') } })}
+            onClick={() => {
+              onTextOverlay({ 
+                TextOverlay: { 
+                  ...textParams, 
+                  color: textParams.color.replace('#', '') 
+                } 
+              });
+              setTextParams(prev => ({ ...prev, selecting: false }));
+            }}
             className="bg-neutral-800 px-3 py-1 rounded"
           >
             Add Text

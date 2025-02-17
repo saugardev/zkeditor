@@ -12,9 +12,10 @@ interface SelectionRectProps {
   onSelectionChange: (selection: RegionSelection) => void;
   imageRef: React.RefObject<HTMLImageElement>;
   zoom: number;
+  singlePoint?: boolean;
 }
 
-export function SelectionRect({ selection, onSelectionChange, imageRef, zoom }: SelectionRectProps) {
+export function SelectionRect({ selection, onSelectionChange, imageRef, zoom, singlePoint }: SelectionRectProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
 
@@ -25,10 +26,15 @@ export function SelectionRect({ selection, onSelectionChange, imageRef, zoom }: 
     const y = (e.clientY - rect.top) / zoom;
     setStartPos({ x, y });
     setIsDragging(true);
+    
+    if (singlePoint) {
+      onSelectionChange({ x, y, width: 1, height: 1 });
+      setIsDragging(false);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !imageRef.current) return;
+    if (!isDragging || !imageRef.current || singlePoint) return;
     const rect = imageRef.current.getBoundingClientRect();
     const currentX = (e.clientX - rect.left) / zoom;
     const currentY = (e.clientY - rect.top) / zoom;

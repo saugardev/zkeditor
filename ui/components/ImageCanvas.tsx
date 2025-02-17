@@ -177,12 +177,23 @@ export function ImageCanvas({
                 height: imageDimensions.height
               }}
             />
-            {selectedTool === 'selection' && (
+            {(selectedTool === 'selection' || selectedTool === 'text') && (
               <SelectionRect 
                 selection={selection} 
-                onSelectionChange={onSelectionChange} 
+                onSelectionChange={(newSelection) => {
+                  if (selectedTool === 'text' && newSelection) {
+                    onSelectionChange(null);
+                    const event = new CustomEvent('textposition', { 
+                      detail: { x: newSelection.x, y: newSelection.y }
+                    });
+                    window.dispatchEvent(event);
+                  } else {
+                    onSelectionChange(newSelection);
+                  }
+                }}
                 imageRef={imageRef as React.RefObject<HTMLImageElement>}
                 zoom={zoom}
+                singlePoint={selectedTool === 'text'}
               />
             )}
           </div>
