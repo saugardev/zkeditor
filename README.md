@@ -2,6 +2,7 @@
 
 - Rust 1.82.0
 - Node.js 23.11.0
+- wasm-pack (https://rustwasm.github.io/wasm-pack/installer/)
 
 # Setup
 
