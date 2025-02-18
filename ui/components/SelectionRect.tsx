@@ -53,14 +53,14 @@ export function SelectionRect({ selection, onSelectionChange, imageRef, zoom, si
 
   return (
     <div
-      className="absolute inset-0 cursor-crosshair"
+      className={`absolute inset-0 ${!singlePoint ? 'cursor-crosshair' : ''}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
       {selection && (
         <div
-          className="absolute border border-blue-500 bg-blue-500/20"
+          className={`absolute border border-blue-500 bg-blue-500/20 ${!singlePoint ? '' : 'pointer-events-none'}`}
           style={{
             left: selection.x,
             top: selection.y,

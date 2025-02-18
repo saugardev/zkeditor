@@ -177,7 +177,7 @@ export function ImageCanvas({
                 height: imageDimensions.height
               }}
             />
-            {(selectedTool === 'selection' || selectedTool === 'text') && (
+            {(selectedTool === 'selection' || selectedTool === 'text' || (selection && selectedTool !== 'text')) && (
               <SelectionRect 
                 selection={selection} 
                 onSelectionChange={(newSelection) => {
