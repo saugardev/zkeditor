@@ -13,7 +13,7 @@ interface MenuItem {
 
 export function Navbar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const { addTab, setIsLoading, tabs } = useTabs();
+  const { addTab, setIsLoading, tabs, activeTab, undo, redo, canUndo, canRedo } = useTabs();
   const { loadImage } = useImageEditor();
 
   const menuItems: MenuItem[] = [
@@ -25,7 +25,13 @@ export function Navbar() {
           action: async () => {
             setIsLoading(true);
             await new Promise(resolve => setTimeout(resolve, 100));
-            addTab({ name: 'Untitled-1.png', imageUrl: null });
+            addTab({ 
+              id: `tab-${Date.now()}`,
+              name: 'Untitled-1.png', 
+              imageUrl: null,
+              history: [''],
+              historyIndex: 0
+            });
             setIsLoading(false);
           }
         },
@@ -43,7 +49,13 @@ export function Navbar() {
                   const project = await loadImage(file, tabs.length);
                   const initialImage = await project.get_layer(0);
                   const imageUrl = URL.createObjectURL(new Blob([initialImage], { type: 'image/png' }));
-                  addTab({ name: file.name, imageUrl });
+                  addTab({ 
+                    id: `tab-${Date.now()}`,
+                    name: file.name, 
+                    imageUrl,
+                    history: [imageUrl],
+                    historyIndex: 0
+                  });
                 } catch (error) {
                   console.error('File upload failed:', error);
                 } finally {
@@ -61,8 +73,22 @@ export function Navbar() {
     {
       label: 'Edit',
       items: [
-        { label: 'Undo', action: () => console.log('Undo') },
-        { label: 'Redo', action: () => console.log('Redo') },
+        { 
+          label: 'Undo', 
+          action: () => {
+            if (canUndo(activeTab)) {
+              undo(activeTab);
+            }
+          }
+        },
+        { 
+          label: 'Redo', 
+          action: () => {
+            if (canRedo(activeTab)) {
+              redo(activeTab);
+            }
+          }
+        },
         { label: 'Copy', action: () => console.log('Copy') },
         { label: 'Paste', action: () => console.log('Paste') }
       ]

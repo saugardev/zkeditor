@@ -9,6 +9,8 @@ interface Tab {
   pan: { x: number; y: number };
   isNew?: boolean;
   selection?: { x: number; y: number; width: number; height: number } | null;
+  history: string[];
+  historyIndex: number;
 }
 
 interface TabsContextType {
@@ -21,6 +23,10 @@ interface TabsContextType {
   setActiveTab: (index: number) => void;
   updateTabState: (index: number, state: Partial<Tab>) => void;
   reorderTabs: (newTabs: Tab[]) => void;
+  undo: (index: number) => void;
+  redo: (index: number) => void;
+  canUndo: (index: number) => boolean;
+  canRedo: (index: number) => boolean;
 }
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined);
@@ -41,7 +47,14 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
 
   const addTab = (tab: Omit<Tab, 'zoom' | 'pan'>) => {
     const newTabIndex = tabs.length;
-    setTabs(prev => [...prev, { ...tab, zoom: 1, pan: { x: 0, y: 0 }, isNew: true }]);
+    setTabs(prev => [...prev, { 
+      ...tab, 
+      zoom: 1, 
+      pan: { x: 0, y: 0 }, 
+      isNew: true,
+      history: [tab.imageUrl || ''],
+      historyIndex: 0
+    }]);
     setActiveTab(newTabIndex);
   };
 
@@ -53,23 +66,75 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateTabState = (index: number, state: Partial<Tab>) => {
-    setTabs(prev => prev.map((tab, i) => 
-      i === index ? { 
-        ...tab, 
-        ...state,
-        isNew: false,
-        zoom: state.zoom ? Math.min(Math.max(state.zoom, 0.1), 10) : tab.zoom,
-        pan: state.pan ?? tab.pan
-      } : tab
-    ));
+    setTabs(prev => prev.map((tab, i) => {
+      if (i === index) {
+        const newTab = { 
+          ...tab, 
+          ...state,
+          isNew: false,
+          zoom: state.zoom ? Math.min(Math.max(state.zoom, 0.1), 10) : tab.zoom,
+          pan: state.pan ?? tab.pan
+        };
+
+        if (state.imageUrl && state.imageUrl !== tab.imageUrl) {
+          const newHistory = tab.history.slice(0, tab.historyIndex + 1);
+          newHistory.push(state.imageUrl);
+          newTab.history = newHistory;
+          newTab.historyIndex = newHistory.length - 1;
+        }
+
+        return newTab;
+      }
+      return tab;
+    }));
   };
 
-  const reorderTabs = (newTabs: Tab[]) => {
+  const reorderTabs = async (newTabs: Tab[]) => {
     const oldIndices = tabs.map((_, i) => i);
-    const newIndices = newTabs.map(newTab => tabs.findIndex(oldTab => oldTab.id === newTab.id));
+    const newIndices = newTabs.map(newTab => {
+      const oldIndex = tabs.findIndex(oldTab => oldTab.id === newTab.id);
+      return oldIndex;
+    });
     
+    await reorderProjects(oldIndices, newIndices);
     setTabs(newTabs);
-    reorderProjects(oldIndices, newIndices);
+  };
+
+  const undo = (index: number) => {
+    setTabs(prev => prev.map((tab, i) => {
+      if (i === index && tab.historyIndex > 0) {
+        const newIndex = tab.historyIndex - 1;
+        return {
+          ...tab,
+          historyIndex: newIndex,
+          imageUrl: tab.history[newIndex]
+        };
+      }
+      return tab;
+    }));
+  };
+
+  const redo = (index: number) => {
+    setTabs(prev => prev.map((tab, i) => {
+      if (i === index && tab.historyIndex < tab.history.length - 1) {
+        const newIndex = tab.historyIndex + 1;
+        return {
+          ...tab,
+          historyIndex: newIndex,
+          imageUrl: tab.history[newIndex]
+        };
+      }
+      return tab;
+    }));
+  };
+
+  const canUndo = (index: number) => {
+    return tabs[index]?.historyIndex > 0;
+  };
+
+  const canRedo = (index: number) => {
+    const tab = tabs[index];
+    return tab ? tab.historyIndex < tab.history.length - 1 : false;
   };
 
   return (
@@ -82,7 +147,11 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
       removeTab, 
       setActiveTab,
       updateTabState,
-      reorderTabs
+      reorderTabs,
+      undo,
+      redo,
+      canUndo,
+      canRedo
     }}>
       {children}
     </TabsContext.Provider>
