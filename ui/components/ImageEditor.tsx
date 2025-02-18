@@ -3,7 +3,7 @@
 import { useImageEditor } from '@/hooks/useImageEditor';
 import { useState } from 'react';
 import { 
-  ImageIcon, 
+  Hand, 
   Wand2, 
   RotateCw, 
   FlipHorizontal2, 
@@ -28,7 +28,7 @@ interface RegionSelection {
 }
 
 const tools = [
-  { icon: ImageIcon, name: 'Upload', type: 'upload' },
+  { icon: Hand, name: 'Upload', type: 'upload' },
   { icon: SquareDashed, name: 'Selection', type: 'selection' },
   { icon: Wand2, name: 'Grayscale', type: 'Grayscale' },
   { icon: RotateCw, name: 'Rotate', type: 'Rotate90' },
@@ -41,26 +41,9 @@ const tools = [
 
 export default function ImageEditor() {
   const { tabs, activeTab, isLoading, setActiveTab, updateTabState, reorderTabs } = useTabs();
-  const { loadImage, applyTransformation, exportImage } = useImageEditor();
+  const { applyTransformation, exportImage } = useImageEditor();
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [isTabLoading, setIsTabLoading] = useState(false);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    try {
-      setIsTabLoading(true);
-      const project = await loadImage(file, activeTab);
-      const initialImage = await project.get_layer(0);
-      const imageUrl = URL.createObjectURL(new Blob([initialImage], { type: 'image/png' }));
-      updateTabState(activeTab, { imageUrl });
-    } catch (error) {
-      console.error('File upload failed:', error);
-    } finally {
-      setIsTabLoading(false);
-    }
-  };
 
   const handleTransform = async (
     type: string,
@@ -178,18 +161,6 @@ export default function ImageEditor() {
 
   const handleToolClick = (toolType: string) => {
     setSelectedTool(toolType);
-    if (toolType === 'upload') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e) => {
-        const target = e.target as HTMLInputElement;
-        if (target.files) {
-          handleFileUpload({ target } as React.ChangeEvent<HTMLInputElement>);
-        }
-      };
-      input.click();
-    }
   };
 
   const handleZoomChange = (newZoom: number) => {
