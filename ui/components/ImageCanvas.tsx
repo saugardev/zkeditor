@@ -1,9 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { SelectionRect } from './SelectionRect';
-import { Rulers } from './Rulers';
-import { Scan } from 'lucide-react';
-import { ContextMenu } from './ContextMenu';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { SelectionRect } from "./SelectionRect";
+import { Rulers } from "./Rulers";
+import { Scan } from "lucide-react";
+import { ContextMenu } from "./ContextMenu";
 
 interface ImageCanvasProps {
   imageUrl: string | null;
@@ -12,11 +12,20 @@ interface ImageCanvasProps {
   onZoomChange: (zoom: number) => void;
   onPanChange: (pan: { x: number; y: number }) => void;
   selection: { x: number; y: number; width: number; height: number } | null;
-  onSelectionChange: (selection: { x: number; y: number; width: number; height: number } | null) => void;
+  onSelectionChange: (
+    selection: { x: number; y: number; width: number; height: number } | null
+  ) => void;
   isLoading: boolean;
   selectedTool: string | null;
   activeTab: number;
-  tabs: { name: string; imageUrl: string | null; zoom: number; pan: { x: number; y: number }; isNew?: boolean }[];
+  tabs: {
+    name: string;
+    imageUrl: string | null;
+    zoom: number;
+    pan: { x: number; y: number };
+    isNew?: boolean;
+    ipfsCid?: string;
+  }[];
   onToolSelect: (tool: string) => void;
   onCopy: () => void;
   undo: (index: number) => void;
@@ -38,21 +47,27 @@ export function ImageCanvas({
   onToolSelect,
   onCopy,
   undo,
-  redo
+  redo,
 }: ImageCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
-  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+  const [imageDimensions, setImageDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
   const [hasInitiallyFit, setHasInitiallyFit] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     if (imageRef.current) {
       setImageDimensions({
         width: imageRef.current.naturalWidth,
-        height: imageRef.current.naturalHeight
+        height: imageRef.current.naturalHeight,
       });
     }
   }, [imageUrl]);
@@ -68,10 +83,10 @@ export function ImageCanvas({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (selectedTool === 'selection') {
+    if (selectedTool === "selection") {
       return;
     }
-    
+
     if (e.button === 1 || e.button === 0) {
       setIsDragging(true);
       setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -82,7 +97,7 @@ export function ImageCanvas({
     if (isDragging) {
       onPanChange({
         x: e.clientX - startPan.x,
-        y: e.clientY - startPan.y
+        y: e.clientY - startPan.y,
       });
     }
   };
@@ -95,12 +110,16 @@ export function ImageCanvas({
     const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener('wheel', (e) => {
-      if (e.ctrlKey) e.preventDefault();
-    }, { passive: false });
+    container.addEventListener(
+      "wheel",
+      (e) => {
+        if (e.ctrlKey) e.preventDefault();
+      },
+      { passive: false }
+    );
 
     return () => {
-      container.removeEventListener('wheel', (e) => {
+      container.removeEventListener("wheel", (e) => {
         if (e.ctrlKey) e.preventDefault();
       });
     };
@@ -108,26 +127,32 @@ export function ImageCanvas({
 
   const fitToBounds = useCallback(() => {
     if (!containerRef.current || !imageRef.current) return;
-    
+
     const container = containerRef.current;
     const image = imageRef.current;
-    
+
     const containerAspect = container.clientWidth / container.clientHeight;
     const imageAspect = image.naturalWidth / image.naturalHeight;
-    
+
     let newZoom;
     if (containerAspect > imageAspect) {
-      newZoom = Math.min((container.clientHeight * 0.9) / image.naturalHeight, 10);
+      newZoom = Math.min(
+        (container.clientHeight * 0.9) / image.naturalHeight,
+        10
+      );
     } else {
-      newZoom = Math.min((container.clientWidth * 0.9) / image.naturalWidth, 10);
+      newZoom = Math.min(
+        (container.clientWidth * 0.9) / image.naturalWidth,
+        10
+      );
     }
-    
+
     onZoomChange(newZoom);
     onPanChange({ x: 0, y: 0 });
   }, [onZoomChange, onPanChange]);
 
   useEffect(() => {
-    if (imageUrl && (!hasInitiallyFit || (tabs?.[activeTab]?.isNew))) {
+    if (imageUrl && (!hasInitiallyFit || tabs?.[activeTab]?.isNew)) {
       fitToBounds();
       setHasInitiallyFit(true);
     }
@@ -140,11 +165,11 @@ export function ImageCanvas({
   };
 
   const handleContextMenuAction = (action: string) => {
-    if (action === 'copy') {
+    if (action === "copy") {
       onCopy();
-    } else if (action === 'undo') {
+    } else if (action === "undo") {
       undo(activeTab);
-    } else if (action === 'redo') {
+    } else if (action === "redo") {
       redo(activeTab);
     } else {
       onToolSelect(action);
@@ -153,22 +178,27 @@ export function ImageCanvas({
 
   const handleGlobalClick = (e: MouseEvent) => {
     if (contextMenu) {
-      const contextMenuElement = document.querySelector('[data-context-menu]');
-      if (contextMenuElement && !contextMenuElement.contains(e.target as Node)) {
+      const contextMenuElement = document.querySelector("[data-context-menu]");
+      if (
+        contextMenuElement &&
+        !contextMenuElement.contains(e.target as Node)
+      ) {
         setContextMenu(null);
       }
     }
   };
 
   useEffect(() => {
-    document.addEventListener('mousedown', handleGlobalClick);
-    return () => document.removeEventListener('mousedown', handleGlobalClick);
+    document.addEventListener("mousedown", handleGlobalClick);
+    return () => document.removeEventListener("mousedown", handleGlobalClick);
   }, [contextMenu]);
 
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full relative ${selectedTool === 'selection' ? 'cursor-crosshair' : 'cursor-grab'}`}
+      className={`w-full h-full relative ${
+        selectedTool === "selection" ? "cursor-crosshair" : "cursor-grab"
+      }`}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -187,7 +217,7 @@ export function ImageCanvas({
           <div
             className="absolute left-1/2 top-1/2"
             style={{
-              transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+              transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             }}
           >
             <img
@@ -201,11 +231,11 @@ export function ImageCanvas({
                 const img = e.currentTarget;
                 setImageDimensions({
                   width: img.naturalWidth,
-                  height: img.naturalHeight
+                  height: img.naturalHeight,
                 });
               }}
             />
-            <div 
+            <div
               className="absolute inset-0 -z-10 bg-[#e0e0e0]"
               style={{
                 backgroundImage: `
@@ -214,20 +244,22 @@ export function ImageCanvas({
                   linear-gradient(45deg, transparent 75%, #c0c0c0 75%),
                   linear-gradient(-45deg, transparent 75%, #c0c0c0 75%)
                 `,
-                backgroundSize: '20px 20px',
-                backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                backgroundSize: "20px 20px",
+                backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
                 width: imageDimensions.width,
-                height: imageDimensions.height
+                height: imageDimensions.height,
               }}
             />
-            {(selectedTool === 'selection' || selectedTool === 'text' || (selection && selectedTool !== 'text')) && (
-              <SelectionRect 
-                selection={selection} 
+            {(selectedTool === "selection" ||
+              selectedTool === "text" ||
+              (selection && selectedTool !== "text")) && (
+              <SelectionRect
+                selection={selection}
                 onSelectionChange={(newSelection) => {
-                  if (selectedTool === 'text' && newSelection) {
+                  if (selectedTool === "text" && newSelection) {
                     onSelectionChange(null);
-                    const event = new CustomEvent('textposition', { 
-                      detail: { x: newSelection.x, y: newSelection.y }
+                    const event = new CustomEvent("textposition", {
+                      detail: { x: newSelection.x, y: newSelection.y },
                     });
                     window.dispatchEvent(event);
                   } else {
@@ -236,13 +268,16 @@ export function ImageCanvas({
                 }}
                 imageRef={imageRef as React.RefObject<HTMLImageElement>}
                 zoom={zoom}
-                singlePoint={selectedTool === 'text'}
+                singlePoint={selectedTool === "text"}
               />
             )}
           </div>
-          
+
           <div className="absolute bottom-2 right-2 bg-neutral-900 px-2 py-1 rounded text-white text-sm flex items-center gap-2">
-            <span>{Math.round(zoom * 100)}% | {imageDimensions.width}x{imageDimensions.height}px</span>
+            <span>
+              {Math.round(zoom * 100)}% | {imageDimensions.width}x
+              {imageDimensions.height}px
+            </span>
             <button
               onClick={fitToBounds}
               className="p-1 hover:bg-neutral-800 rounded"
@@ -268,4 +303,4 @@ export function ImageCanvas({
       )}
     </div>
   );
-} 
+}
