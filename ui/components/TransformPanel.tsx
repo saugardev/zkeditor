@@ -135,6 +135,17 @@ export function TransformPanel({
       case 'Blur':
         onTransform(selectedTool, params.Blur.sigma);
         break;
+      case 'Crop':
+        if (selection) {
+          onTransform(selectedTool, undefined, undefined, {
+            x: Math.round(selection.x),
+            y: Math.round(selection.y),
+            width: Math.round(selection.width),
+            height: Math.round(selection.height)
+          });
+          onSelectionChange(null);
+        }
+        break;
       default:
         onTransform(selectedTool);
     }
@@ -233,12 +244,27 @@ export function TransformPanel({
                     </div>
                   )}
 
-                  <button
-                    onClick={handleApply}
-                    className="bg-neutral-800 px-3 py-1 rounded"
-                  >
-                    Apply {selectedTool}
-                  </button>
+                  {selectedTool === 'Crop' ? (
+                    selection ? (
+                      <button
+                        onClick={handleApply}
+                        className="bg-neutral-800 px-3 py-1 rounded"
+                      >
+                        Apply Crop
+                      </button>
+                    ) : (
+                      <div className="text-sm text-neutral-400">
+                        Select an area to crop
+                      </div>
+                    )
+                  ) : (
+                    <button
+                      onClick={handleApply}
+                      className="bg-neutral-800 px-3 py-1 rounded"
+                    >
+                      Apply {selectedTool}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

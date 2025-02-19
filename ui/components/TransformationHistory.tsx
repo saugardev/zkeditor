@@ -1,4 +1,4 @@
-import { Transformation } from '@/types/transformations';
+import { Transformation, TransformationRegion } from '@/types/transformations';
 import { Undo2 } from 'lucide-react';
 
 interface TransformationHistoryProps {
@@ -20,6 +20,17 @@ export function TransformationHistory({ transformations, onUndo }: Transformatio
     );
   }
 
+  const formatParam = (key: string, value: unknown): string => {
+    if (key === 'region' && value && typeof value === 'object' && 'x' in value) {
+      const region = value as TransformationRegion;
+      return `${Math.round(region.x)}, ${Math.round(region.y)}, ${Math.round(region.width)}x${Math.round(region.height)}`;
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
   return (
     <div className="flex-none h-[50vh] border-neutral-800">
       <div className="px-2 py-3 border-b border-neutral-800">
@@ -36,7 +47,7 @@ export function TransformationHistory({ transformations, onUndo }: Transformatio
               {t.params && (
                 <div className="text-xs text-neutral-500 mt-0.5">
                   {Object.entries(t.params).map(([key, value]) => (
-                    <div key={key}>{key}: {value}</div>
+                    <div key={key}>{key}: {formatParam(key, value)}</div>
                   ))}
                 </div>
               )}

@@ -12,7 +12,8 @@ import {
   Droplet,
   Type,
   SquareDashed,
-  Menu
+  Menu,
+  Crop
 } from 'lucide-react';
 import { TransformPanel } from '@/components/TransformPanel';
 import { ImageCanvas } from '@/components/ImageCanvas';
@@ -30,6 +31,7 @@ interface RegionSelection {
 const tools = [
   { icon: Hand, name: 'Upload', type: 'upload' },
   { icon: SquareDashed, name: 'Selection', type: 'selection' },
+  { icon: Crop, name: 'Crop', type: 'Crop' },
   { icon: Wand2, name: 'Grayscale', type: 'Grayscale' },
   { icon: RotateCw, name: 'Rotate', type: 'Rotate90' },
   { icon: FlipHorizontal2, name: 'Flip', type: 'FlipHorizontal' },
@@ -95,6 +97,15 @@ export default function ImageEditor() {
             } : null
           }
         };
+      } else if (type === 'Crop' && region) {
+        transformation = {
+          Crop: {
+            x: region.x,
+            y: region.y,
+            width: region.width,
+            height: region.height
+          }
+        };
       } else {
         transformation = {
           [type]: noRegionTransforms.includes(type) 
@@ -124,7 +135,16 @@ export default function ImageEditor() {
             ...(tabs[activeTab].transformations || []),
             {
               type,
-              params: value ? { [paramName || 'value']: value } : undefined,
+              params: value 
+                ? { [paramName || 'value']: value } 
+                : region 
+                  ? { region: {
+                      x: Math.round(region.x),
+                      y: Math.round(region.y),
+                      width: Math.round(region.width),
+                      height: Math.round(region.height)
+                    }} 
+                  : undefined,
               timestamp: Date.now()
             }
           ]

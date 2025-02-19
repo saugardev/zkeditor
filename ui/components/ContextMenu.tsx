@@ -10,6 +10,7 @@ import {
   SquareDashed,
   Copy,
   RotateCcw,
+  Crop
 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -24,15 +25,17 @@ const menuItems = [
   { icon: Copy, label: 'Copy', action: 'copy' },
   { icon: RotateCcw, label: 'Undo', action: 'undo' },
   { icon: RotateCw, label: 'Redo', action: 'redo' },
-  { type: 'separator' },
+  { type: 'separator', id: 'sep1' },
+  { icon: SquareDashed, label: 'Select Region', action: 'selection' },
+  { icon: Crop, label: 'Crop', action: 'Crop' },
+  { type: 'separator', id: 'sep2' },
   { icon: Wand2, label: 'Grayscale', action: 'Grayscale' },
   { icon: RotateCw, label: 'Rotate', action: 'Rotate90' },
   { icon: FlipHorizontal2, label: 'Flip', action: 'FlipHorizontal' },
   { icon: SunMedium, label: 'Brighten', action: 'Brighten' },
   { icon: Contrast, label: 'Contrast', action: 'Contrast' },
   { icon: Droplet, label: 'Blur', action: 'Blur' },
-  { icon: Type, label: 'Add Text', action: 'text' },
-  { icon: SquareDashed, label: 'Select Region', action: 'selection' },
+  { icon: Type, label: 'Add Text', action: 'text' }
 ];
 
 export function ContextMenu({ x, y, onClose, onAction }: ContextMenuProps) {
@@ -76,7 +79,7 @@ export function ContextMenu({ x, y, onClose, onAction }: ContextMenuProps) {
     >
       {menuItems.map((item) => (
         'type' in item ? (
-          <div key="separator" className="h-px bg-neutral-700 my-1" />
+          <div key={item.id} className="h-px bg-neutral-700 my-1" />
         ) : (
           <button
             key={item.action}
