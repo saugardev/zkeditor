@@ -59,39 +59,29 @@ impl Layer {
         Ok(())
     }
 
+    fn apply_transform_with_region(&mut self, region: Option<Region>, transform: Box<dyn Fn(&DynamicImage) -> DynamicImage>) -> Result<(), String> {
+        match region {
+            Some(region) => self.apply_region_transformation(&region, Box::new(move |img| {
+                *img = transform(img);
+            })),
+            None => {
+                self.image = transform(&self.image);
+                Ok(())
+            }
+        }
+    }
+
     pub fn apply_transformation(&mut self, transformation: Transformation) -> Result<(), String> {
         match transformation {
             Transformation::Grayscale { region } => {
-                if let Some(region) = region {
-                    self.apply_region_transformation(&region, Box::new(|img| {
-                        *img = img.grayscale();
-                    }))
-                } else {
-                    self.image = self.image.grayscale();
-                    Ok(())
-                }
+                self.apply_transform_with_region(region, Box::new(|img| img.grayscale()))
             },
             Transformation::FlipHorizontal { region } => {
-                if let Some(region) = region {
-                    self.apply_region_transformation(&region, Box::new(|img| {
-                        *img = img.fliph();
-                    }))
-                } else {
-                    self.image = self.image.fliph();
-                    Ok(())
-                }
+                self.apply_transform_with_region(region, Box::new(|img| img.fliph()))
             },
             Transformation::FlipVertical { region } => {
-                if let Some(region) = region {
-                    self.apply_region_transformation(&region, Box::new(|img| {
-                        *img = img.flipv();
-                    }))
-                } else {
-                    self.image = self.image.flipv();
-                    Ok(())
-                }
+                self.apply_transform_with_region(region, Box::new(|img| img.flipv()))
             },
-            // Keep other transformations as is
             Transformation::Rotate90 => {
                 self.image = self.image.rotate90();
                 Ok(())
@@ -105,37 +95,13 @@ impl Layer {
                 Ok(())
             },
             Transformation::Brighten { value, region } => {
-                if let Some(region) = region {
-                    let value = value;
-                    self.apply_region_transformation(&region, Box::new(move |img| {
-                        *img = img.brighten(value);
-                    }))
-                } else {
-                    self.image = self.image.brighten(value);
-                    Ok(())
-                }
+                self.apply_transform_with_region(region, Box::new(move |img| img.brighten(value)))
             },
             Transformation::Contrast { contrast, region } => {
-                if let Some(region) = region {
-                    let contrast = contrast;
-                    self.apply_region_transformation(&region, Box::new(move |img| {
-                        *img = img.adjust_contrast(contrast);
-                    }))
-                } else {
-                    self.image = self.image.adjust_contrast(contrast);
-                    Ok(())
-                }
+                self.apply_transform_with_region(region, Box::new(move |img| img.adjust_contrast(contrast)))
             },
             Transformation::Blur { sigma, region } => {
-                if let Some(region) = region {
-                    let sigma = sigma;
-                    self.apply_region_transformation(&region, Box::new(move |img| {
-                        *img = img.blur(sigma);
-                    }))
-                } else {
-                    self.image = self.image.blur(sigma);
-                    Ok(())
-                }
+                self.apply_transform_with_region(region, Box::new(move |img| img.blur(sigma)))
             },
             Transformation::TextOverlay(params) => {
                 self.apply_text_overlay(&params)
