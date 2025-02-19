@@ -33,7 +33,7 @@ export function TextOverlayControls({ onApply }: TextOverlayProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 border-r">
       <input
         type="text"
         value={text}

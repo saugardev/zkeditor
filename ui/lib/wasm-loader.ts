@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ImageProject } from '../src/wasm/img_editor_lib';
+import type { WasmImageProject } from '../src/wasm/img_editor_lib';
 
 let wasmModule: any = null;
 
@@ -16,7 +16,7 @@ export async function initWasm(): Promise<typeof import('../src/wasm/img_editor_
   }
 }
 
-export async function createImageProject(): Promise<ImageProject> {
+export async function createImageProject(): Promise<WasmImageProject> {
   const wasm = await initWasm();
-  return new wasm.ImageProject();
+  return new wasm.WasmImageProject();
 } 
