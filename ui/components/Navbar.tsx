@@ -89,8 +89,25 @@ export function Navbar() {
             }
           }
         },
-        { label: 'Copy', action: () => console.log('Copy') },
-        { label: 'Paste', action: () => console.log('Paste') }
+        { 
+          label: 'Copy', 
+          action: async () => {
+            const img = document.querySelector(`img[data-tab="${activeTab}"]`) as HTMLImageElement;
+            if (img?.src) {
+              try {
+                const response = await fetch(img.src);
+                const blob = await response.blob();
+                await navigator.clipboard.write([
+                  new ClipboardItem({
+                    [blob.type]: blob
+                  })
+                ]);
+              } catch (error) {
+                console.error('Failed to copy image:', error);
+              }
+            }
+          }
+        }
       ]
     },
     {
