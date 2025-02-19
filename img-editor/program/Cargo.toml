@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sp1-zkvm = "4.0.0"
+sp1-zkvm = { workspace = true }
 img-editor-lib = { workspace = true }
-serde = { version = "1.0", features = ["derive"] }
-image = "0.24"
-sp1-derive = "4.0.0"
+serde = { workspace = true }
+image = { workspace = true }
+sp1-derive = { workspace = true }

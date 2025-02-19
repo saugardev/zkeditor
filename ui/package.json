@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:wasm": "wasm-pack build ../img-editor --target web --out-dir ../ui/src/wasm --features wasm"
+    "build:wasm": "wasm-pack build ../img-editor/lib --target web --out-dir ../../ui/src/wasm --features wasm"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
