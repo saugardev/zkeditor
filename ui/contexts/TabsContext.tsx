@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext } from 'react';
 import { useImageEditor } from '@/hooks/useImageEditor';
+import { Transformation } from '@/types/transformations';
 
 interface Tab {
   id: string;
@@ -11,6 +12,7 @@ interface Tab {
   selection?: { x: number; y: number; width: number; height: number } | null;
   history: string[];
   historyIndex: number;
+  transformations: Transformation[];
 }
 
 interface TabsContextType {
@@ -53,7 +55,8 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
       pan: { x: 0, y: 0 }, 
       isNew: true,
       history: [tab.imageUrl || ''],
-      historyIndex: 0
+      historyIndex: 0,
+      transformations: []
     }]);
     setActiveTab(newTabIndex);
   };

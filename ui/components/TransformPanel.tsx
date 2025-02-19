@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
+import { useTabs } from '../contexts/TabsContext';
+import { TransformationHistory } from './TransformationHistory';
 
 interface RegionSelection {
   x: number;
@@ -30,6 +32,10 @@ export function TransformPanel({
   selection,
   onSelectionChange
 }: TransformPanelProps) {
+  const { tabs, activeTab, undo } = useTabs();
+  const activeTransformations = tabs[activeTab]?.transformations || [];
+  const hasActiveImage = Boolean(tabs[activeTab]?.imageUrl);
+
   const [textParams, setTextParams] = useState({
     text: '',
     x: 10,
@@ -44,6 +50,7 @@ export function TransformPanel({
     Contrast: { contrast: 1.5 },
     Blur: { sigma: 10.0 }
   });
+
 
   useEffect(() => {
     const handleTextPosition = (e: CustomEvent) => {
@@ -61,7 +68,7 @@ export function TransformPanel({
     return () => window.removeEventListener('textposition', handleTextPosition as EventListener);
   }, [textParams.selecting]);
 
-  if (!selectedTool) return null;
+  if (!hasActiveImage) return null;
 
   const renderToolParams = () => {
     switch (selectedTool) {
@@ -115,6 +122,8 @@ export function TransformPanel({
   };
 
   const handleApply = () => {
+    if (!selectedTool) return;
+    
     console.log('Applying transformation:', selectedTool);
     switch (selectedTool) {
       case 'Brighten':
@@ -132,102 +141,111 @@ export function TransformPanel({
   };
 
   return (
-    <div className="text-white">
-      {selectedTool === 'text' ? (
-        <div className="flex flex-col gap-3">
-          <input
-            type="text"
-            value={textParams.text}
-            onChange={(e) => setTextParams({ ...textParams, text: e.target.value })}
-            placeholder="Enter text"
-            className="bg-neutral-800 px-2 py-1 rounded"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={textParams.x}
-                onChange={(e) => setTextParams({ ...textParams, x: Number(e.target.value) })}
-                placeholder="X"
-                className="bg-neutral-800 px-2 py-1 rounded w-full"
-              />
-              <input
-                type="number"
-                value={textParams.y}
-                onChange={(e) => setTextParams({ ...textParams, y: Number(e.target.value) })}
-                placeholder="Y"
-                className="bg-neutral-800 px-2 py-1 rounded w-full"
-              />
+    <div className="flex flex-col h-full">
+      {selectedTool && (
+        <div className="flex-1">
+          <div className="text-white h-full flex flex-col">
+            <div className="flex-1 overflow-y-auto min-h-0 p-4">
+              {selectedTool === 'text' ? (
+                <div className="flex flex-col gap-3">
+                  <input
+                    type="text"
+                    value={textParams.text}
+                    onChange={(e) => setTextParams({ ...textParams, text: e.target.value })}
+                    placeholder="Enter text"
+                    className="bg-neutral-800 px-2 py-1 rounded"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={textParams.x}
+                        onChange={(e) => setTextParams({ ...textParams, x: Number(e.target.value) })}
+                        placeholder="X"
+                        className="bg-neutral-800 px-2 py-1 rounded w-full"
+                      />
+                      <input
+                        type="number"
+                        value={textParams.y}
+                        onChange={(e) => setTextParams({ ...textParams, y: Number(e.target.value) })}
+                        placeholder="Y"
+                        className="bg-neutral-800 px-2 py-1 rounded w-full"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setTextParams(prev => ({ ...prev, selecting: !prev.selecting }));
+                      if (!textParams.selecting) {
+                        onSelectionChange(null);
+                      }
+                    }}
+                    className={`px-3 py-1 rounded ${
+                      textParams.selecting ? 'bg-blue-600' : 'bg-neutral-800'
+                    }`}
+                  >
+                    {textParams.selecting ? 'Cancel Selection' : 'Select Position'}
+                  </button>
+                  <input
+                    type="number"
+                    value={textParams.size}
+                    onChange={(e) => setTextParams({ ...textParams, size: Number(e.target.value) })}
+                    placeholder="Size"
+                    className="bg-neutral-800 px-2 py-1 rounded"
+                  />
+                  <input
+                    type="color"
+                    value={textParams.color}
+                    onChange={(e) => setTextParams({ ...textParams, color: e.target.value })}
+                    className="w-full h-8"
+                  />
+                  <button
+                    onClick={() => {
+                      onTextOverlay({ 
+                        TextOverlay: { 
+                          ...textParams, 
+                          color: textParams.color.replace('#', '') 
+                        } 
+                      });
+                      setTextParams(prev => ({ ...prev, selecting: false }));
+                    }}
+                    className="bg-neutral-800 px-3 py-1 rounded"
+                  >
+                    Add Text
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {renderToolParams()}
+                  
+                  {selection && (
+                    <div className="mt-2">
+                      <div className="text-sm text-neutral-400 mb-1">Selection</div>
+                      <div className="text-xs text-neutral-500">
+                        {Math.round(selection.x)}, {Math.round(selection.y)}, {Math.round(selection.width)} x {Math.round(selection.height)}
+                      </div>
+                      <button
+                        onClick={() => onSelectionChange(null)}
+                        className="mt-2 text-sm text-red-400 hover:text-red-300"
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleApply}
+                    className="bg-neutral-800 px-3 py-1 rounded"
+                  >
+                    Apply {selectedTool}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-          <button
-            onClick={() => {
-              setTextParams(prev => ({ ...prev, selecting: !prev.selecting }));
-              if (!textParams.selecting) {
-                onSelectionChange(null);
-              }
-            }}
-            className={`px-3 py-1 rounded ${
-              textParams.selecting ? 'bg-blue-600' : 'bg-neutral-800'
-            }`}
-          >
-            {textParams.selecting ? 'Cancel Selection' : 'Select Position'}
-          </button>
-          <input
-            type="number"
-            value={textParams.size}
-            onChange={(e) => setTextParams({ ...textParams, size: Number(e.target.value) })}
-            placeholder="Size"
-            className="bg-neutral-800 px-2 py-1 rounded"
-          />
-          <input
-            type="color"
-            value={textParams.color}
-            onChange={(e) => setTextParams({ ...textParams, color: e.target.value })}
-            className="w-full h-8"
-          />
-          <button
-            onClick={() => {
-              onTextOverlay({ 
-                TextOverlay: { 
-                  ...textParams, 
-                  color: textParams.color.replace('#', '') 
-                } 
-              });
-              setTextParams(prev => ({ ...prev, selecting: false }));
-            }}
-            className="bg-neutral-800 px-3 py-1 rounded"
-          >
-            Add Text
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {renderToolParams()}
-          
-          {selection && (
-            <div className="mt-2">
-              <div className="text-sm text-neutral-400 mb-1">Selection</div>
-              <div className="text-xs text-neutral-500">
-                {Math.round(selection.x)}, {Math.round(selection.y)}, {Math.round(selection.width)} x {Math.round(selection.height)}
-              </div>
-              <button
-                onClick={() => onSelectionChange(null)}
-                className="mt-2 text-sm text-red-400 hover:text-red-300"
-              >
-                Clear Selection
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={handleApply}
-            className="bg-neutral-800 px-3 py-1 rounded"
-          >
-            Apply {selectedTool}
-          </button>
         </div>
       )}
+      <TransformationHistory transformations={activeTransformations} onUndo={() => undo(activeTab)} />
     </div>
   );
 } 

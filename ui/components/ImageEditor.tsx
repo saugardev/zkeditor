@@ -42,7 +42,7 @@ const tools = [
 export default function ImageEditor() {
   const { tabs, activeTab, isLoading, setActiveTab, updateTabState, reorderTabs, undo, redo } = useTabs();
   const { applyTransformation, exportImage } = useImageEditor();
-  const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [selectedTool, setSelectedTool] = useState<string | null>('Hand');
   const [isTabLoading, setIsTabLoading] = useState(false);
 
   const handleTransform = async (
@@ -118,7 +118,17 @@ export default function ImageEditor() {
       console.log('New URL after transformation:', newUrl);
       
       if (newUrl) {
-        updateTabState(activeTab, { imageUrl: newUrl });
+        updateTabState(activeTab, { 
+          imageUrl: newUrl,
+          transformations: [
+            ...(tabs[activeTab].transformations || []),
+            {
+              type,
+              params: value ? { [paramName || 'value']: value } : undefined,
+              timestamp: Date.now()
+            }
+          ]
+        });
       }
     } catch (error) {
       console.error('Transform failed:', error);
