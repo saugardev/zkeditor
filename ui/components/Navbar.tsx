@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useTabs } from '@/contexts/TabsContext';
 import { useImageEditor } from '@/hooks/useImageEditor';
+import { useToast } from '@/contexts/ToastContext';
 
 interface MenuItem {
   label: string;
@@ -15,6 +16,7 @@ export function Navbar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const { addTab, setIsLoading, tabs, activeTab, undo, redo, canUndo, canRedo } = useTabs();
   const { loadImage } = useImageEditor();
+  const { showToast } = useToast();
 
   const menuItems: MenuItem[] = [
     {
@@ -56,8 +58,10 @@ export function Navbar() {
                     history: [imageUrl],
                     historyIndex: 0
                   });
+                  showToast('Image opened successfully');
                 } catch (error) {
                   console.error('File upload failed:', error);
+                  showToast('Failed to open image');
                 } finally {
                   setIsLoading(false);
                 }
@@ -78,6 +82,10 @@ export function Navbar() {
           action: () => {
             if (canUndo(activeTab)) {
               undo(activeTab);
+              showToast('Undo successful');
+            }
+            else {
+              showToast('No image to undo');
             }
           }
         },
@@ -86,11 +94,15 @@ export function Navbar() {
           action: () => {
             if (canRedo(activeTab)) {
               redo(activeTab);
+              showToast('Redo successful');
+            }
+            else {
+              showToast('No image to redo');
             }
           }
         },
-        { 
-          label: 'Copy', 
+        {
+          label: 'Copy',
           action: async () => {
             const img = document.querySelector(`img[data-tab="${activeTab}"]`) as HTMLImageElement;
             if (img?.src) {
@@ -102,9 +114,14 @@ export function Navbar() {
                     [blob.type]: blob
                   })
                 ]);
+                showToast('Image copied to clipboard');
               } catch (error) {
                 console.error('Failed to copy image:', error);
+                showToast('Failed to copy image');
               }
+            }
+            else {
+              showToast('No image to copy');
             }
           }
         }
