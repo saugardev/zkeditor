@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { SelectionRect } from './SelectionRect';
 import { Rulers } from './Rulers';
 import { Scan } from 'lucide-react';
+import { ContextMenu } from './ContextMenu';
 
 interface ImageCanvasProps {
   imageUrl: string | null;
@@ -16,6 +17,10 @@ interface ImageCanvasProps {
   selectedTool: string | null;
   activeTab: number;
   tabs: { name: string; imageUrl: string | null; zoom: number; pan: { x: number; y: number }; isNew?: boolean }[];
+  onToolSelect: (tool: string) => void;
+  onCopy: () => void;
+  undo: (index: number) => void;
+  redo: (index: number) => void;
 }
 
 export function ImageCanvas({
@@ -29,7 +34,11 @@ export function ImageCanvas({
   isLoading,
   selectedTool,
   activeTab,
-  tabs
+  tabs,
+  onToolSelect,
+  onCopy,
+  undo,
+  redo
 }: ImageCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -37,6 +46,7 @@ export function ImageCanvas({
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
   const [hasInitiallyFit, setHasInitiallyFit] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (imageRef.current) {
@@ -123,6 +133,38 @@ export function ImageCanvas({
     }
   }, [imageUrl, hasInitiallyFit, fitToBounds, activeTab, tabs]);
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleContextMenuAction = (action: string) => {
+    if (action === 'copy') {
+      onCopy();
+    } else if (action === 'undo') {
+      undo(activeTab);
+    } else if (action === 'redo') {
+      redo(activeTab);
+    } else {
+      onToolSelect(action);
+    }
+  };
+
+  const handleGlobalClick = (e: MouseEvent) => {
+    if (contextMenu) {
+      const contextMenuElement = document.querySelector('[data-context-menu]');
+      if (contextMenuElement && !contextMenuElement.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleGlobalClick);
+    return () => document.removeEventListener('mousedown', handleGlobalClick);
+  }, [contextMenu]);
+
   return (
     <div
       ref={containerRef}
@@ -132,6 +174,7 @@ export function ImageCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onContextMenu={handleContextMenu}
     >
       {imageUrl && !isLoading && (
         <>
@@ -214,6 +257,14 @@ export function ImageCanvas({
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
           <div className="text-white">Processing...</div>
         </div>
+      )}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onAction={handleContextMenuAction}
+        />
       )}
     </div>
   );

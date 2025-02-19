@@ -40,7 +40,7 @@ const tools = [
 ];
 
 export default function ImageEditor() {
-  const { tabs, activeTab, isLoading, setActiveTab, updateTabState, reorderTabs } = useTabs();
+  const { tabs, activeTab, isLoading, setActiveTab, updateTabState, reorderTabs, undo, redo } = useTabs();
   const { applyTransformation, exportImage } = useImageEditor();
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [isTabLoading, setIsTabLoading] = useState(false);
@@ -274,6 +274,19 @@ export default function ImageEditor() {
                 selectedTool={selectedTool}
                 activeTab={activeTab}
                 tabs={tabs}
+                onToolSelect={handleToolClick}
+                onCopy={() => {
+                  const img = document.querySelector(`img[data-tab="${activeTab}"]`) as HTMLImageElement;
+                  if (img?.src) {
+                    navigator.clipboard.write([
+                      new ClipboardItem({
+                        'image/png': fetch(img.src).then(r => r.blob())
+                      })
+                    ]);
+                  }
+                }}
+                undo={undo}
+                redo={redo}
               />
             </div>
   
