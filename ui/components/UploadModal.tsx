@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Upload, X } from "lucide-react";
+import { useAccount, useSignMessage } from "wagmi";
+import { useToast } from "@/contexts/ToastContext";
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImageSelect: (file: File, ipfsCid?: string) => void;
+  onImageSelect: (file: File, ipfsCid?: string, signature?: string) => void;
 }
 
 export function UploadModal({
@@ -14,13 +16,19 @@ export function UploadModal({
 }: UploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
   const [ipfsCid, setIpfsCid] = useState<string | null>(null);
+  const [signature, setSignature] = useState<string | null>(null);
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const { showToast } = useToast();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setIpfsCid(null);
+      setSignature(null);
     }
   };
 
@@ -49,14 +57,56 @@ export function UploadModal({
       }
     } catch (error) {
       console.error("Failed to upload to IPFS:", error);
+      showToast("Failed to upload to IPFS");
     } finally {
       setIsUploading(false);
     }
   };
 
+  const hashBuffer = async (buffer: ArrayBuffer): Promise<string> => {
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return hashHex;
+  };
+
+  const handleSign = async () => {
+    if (!selectedFile || !address || !isConnected) {
+      showToast("Please connect your wallet to sign the image");
+      return;
+    }
+
+    try {
+      setIsSigning(true);
+
+      // Read the file content and create a hash
+      const buffer = await selectedFile.arrayBuffer();
+      const contentHash = await hashBuffer(buffer);
+
+      // Create a message containing the content hash and IPFS CID (if available)
+      const message = `Signing image content hash: ${contentHash}${
+        ipfsCid ? `\nIPFS CID: ${ipfsCid}` : ""
+      }`;
+
+      const sig = await signMessageAsync({
+        message,
+        account: address,
+      });
+      setSignature(sig);
+      showToast("Image signed successfully");
+    } catch (error) {
+      console.error("Failed to sign image:", error);
+      showToast("Failed to sign image");
+    } finally {
+      setIsSigning(false);
+    }
+  };
+
   const handleContinue = () => {
     if (selectedFile) {
-      onImageSelect(selectedFile, ipfsCid || undefined);
+      onImageSelect(selectedFile, ipfsCid || undefined, signature || undefined);
       onClose();
     }
   };
@@ -122,6 +172,23 @@ export function UploadModal({
                   <p className="text-sm text-white mb-1">IPFS CID:</p>
                   <p className="text-sm font-mono break-all text-white">
                     {ipfsCid}
+                  </p>
+                </div>
+              )}
+
+              {!signature ? (
+                <button
+                  onClick={handleSign}
+                  disabled={isSigning}
+                  className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSigning ? "Signing..." : "Sign Image Content"}
+                </button>
+              ) : (
+                <div className="bg-neutral-800 rounded p-3">
+                  <p className="text-sm text-white mb-1">Signature:</p>
+                  <p className="text-sm font-mono break-all text-white">
+                    {signature}
                   </p>
                 </div>
               )}

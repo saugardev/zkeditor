@@ -14,6 +14,7 @@ interface Tab {
   historyIndex: number;
   transformations: Transformation[];
   ipfsCid?: string;
+  signature?: string;
 }
 
 interface TabsContextType {
