@@ -10,6 +10,7 @@ interface InfoModalProps {
       height: number;
     };
     ipfsCid?: string;
+    signature?: string;
   } | null;
 }
 
@@ -51,6 +52,15 @@ export function InfoModal({ isOpen, onClose, imageInfo }: InfoModalProps) {
                   <p className="text-sm text-neutral-400 mb-1">IPFS CID</p>
                   <p className="text-sm font-mono break-all text-white">
                     {imageInfo.ipfsCid}
+                  </p>
+                </div>
+              )}
+
+              {imageInfo.signature && (
+                <div>
+                  <p className="text-sm text-neutral-400 mb-1">Signature</p>
+                  <p className="text-sm font-mono break-all text-white">
+                    {imageInfo.signature}
                   </p>
                 </div>
               )}

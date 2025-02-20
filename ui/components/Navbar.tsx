@@ -5,6 +5,7 @@ import { useImageEditor } from "@/hooks/useImageEditor";
 import { useToast } from "@/contexts/ToastContext";
 import { UploadModal } from "./UploadModal";
 import { InfoModal } from "./InfoModal";
+import { ConnectButton } from "./ConnectButton";
 
 interface MenuItem {
   label: string;
@@ -31,7 +32,11 @@ export function Navbar() {
   const { loadImage } = useImageEditor();
   const { showToast } = useToast();
 
-  const handleNewProject = async (file: File, ipfsCid?: string) => {
+  const handleNewProject = async (
+    file: File,
+    ipfsCid?: string,
+    signature?: string
+  ) => {
     try {
       setIsLoading(true);
       const project = await loadImage(file, tabs.length);
@@ -39,6 +44,7 @@ export function Navbar() {
       const imageUrl = URL.createObjectURL(
         new Blob([initialImage], { type: "image/png" })
       );
+
       addTab({
         id: `tab-${Date.now()}`,
         name: file.name,
@@ -47,6 +53,7 @@ export function Navbar() {
         historyIndex: 0,
         transformations: [],
         ipfsCid,
+        signature,
       });
       showToast("Project created successfully");
     } catch (error) {
@@ -167,7 +174,7 @@ export function Navbar() {
   return (
     <>
       <nav className="bg-neutral-900 border-b text-white border-neutral-700">
-        <div className="flex items-center">
+        <div className="flex items-center justify-between">
           <div className="flex">
             {menuItems.map((menu) => (
               <div
@@ -197,6 +204,7 @@ export function Navbar() {
               </div>
             ))}
           </div>
+          <ConnectButton />
         </div>
       </nav>
 
@@ -228,6 +236,7 @@ export function Navbar() {
                     )?.naturalHeight || 0,
                 },
                 ipfsCid: tabs[activeTab].ipfsCid,
+                signature: tabs[activeTab].signature,
               }
             : null
         }
