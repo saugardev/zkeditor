@@ -1,5 +1,5 @@
 use image::ImageFormat;
-use crate::{Layer, ImageInput, ImageOutput, Transformation};
+use crate::{Layer, Transformation};
 
 pub struct ImageProject {
     pub(crate) layers: Vec<Layer>,
@@ -39,21 +39,5 @@ impl ImageProject {
         let empty_layer = Layer::new_empty(width, height)?;
         self.layers.push(empty_layer);
         Ok(())
-    }
-
-    pub fn process_with_proof(&mut self, input: &ImageInput) -> Result<ImageOutput, String> {
-        self.add_layer(&input.image_data)?;
-        
-        for transformation in &input.transformations {
-            self.transform_layer(0, transformation)?;
-        }
-        
-        let final_image = self.get_layer(0, None)?;
-        
-        Ok(ImageOutput {
-            final_image,
-            transformation_count: input.transformations.len(),
-            id: input.id.clone()
-        })
     }
 }

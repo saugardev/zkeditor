@@ -55,16 +55,22 @@ pub enum Transformation {
     TextOverlay(TextOverlayParameters),
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SignatureData {
+    pub signature: Vec<u8>,
+    pub public_key: Vec<u8>,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageInput {
     pub image_data: Vec<u8>,
     pub transformations: Vec<Transformation>,
-    pub id: String,
+    pub signature_data: Option<SignatureData>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageOutput {
     pub final_image: Vec<u8>,
-    pub transformation_count: usize,
-    pub id: String,
+    pub original_image_hash: Vec<u8>,
+    pub signer_public_key: Option<Vec<u8>>,
 }
