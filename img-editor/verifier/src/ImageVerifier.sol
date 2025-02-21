@@ -38,4 +38,21 @@ contract ImageVerifier {
         imageData = _publicValues;
         emit ProofVerified(imageData, _proofBytes);
     }
+
+    /// @notice Decodes SP1 public values into PNG data by removing the 8-byte prefix
+    /// @param _publicValues The SP1 public values (includes 8 byte prefix)
+    /// @return The raw PNG data
+    function decodePublicValues(bytes calldata _publicValues) public pure returns (bytes memory) {
+        require(_publicValues.length > 8, "Invalid public values length");
+        
+        // Create new bytes array without prefix
+        bytes memory pngData = new bytes(_publicValues.length - 8);
+        
+        // Copy bytes after prefix
+        for(uint i = 8; i < _publicValues.length; i++) {
+            pngData[i - 8] = _publicValues[i];
+        }
+        
+        return pngData;
+    }
 } 
