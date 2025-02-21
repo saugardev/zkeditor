@@ -5,6 +5,7 @@ import { useImageEditor } from "@/hooks/useImageEditor";
 import { useToast } from "@/contexts/ToastContext";
 import { UploadModal } from "./UploadModal";
 import { InfoModal } from "./InfoModal";
+import { ProofModal } from "./ProofModal";
 import { ConnectButton } from "./ConnectButton";
 
 interface MenuItem {
@@ -19,6 +20,7 @@ export function Navbar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showProofModal, setShowProofModal] = useState(false);
   const {
     addTab,
     setIsLoading,
@@ -89,6 +91,13 @@ export function Navbar() {
         },
         { label: "Save", action: () => console.log("Save") },
         { label: "Export", action: () => console.log("Export") },
+        { label: "Generate Proof", action: () => {
+          if (tabs[activeTab]?.imageUrl) {
+            setShowProofModal(true);
+          } else {
+            showToast("No image to generate proof for");
+          }
+        }},
       ],
     },
     {
@@ -240,6 +249,11 @@ export function Navbar() {
               }
             : null
         }
+      />
+
+      <ProofModal
+        isOpen={showProofModal}
+        onClose={() => setShowProofModal(false)}
       />
     </>
   );
