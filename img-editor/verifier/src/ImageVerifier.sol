@@ -14,7 +14,7 @@ contract ImageVerifier {
     bytes32 public imageTransformVKey;
 
     /// @notice Event emitted when a proof is verified
-    event ProofVerified(string indexed id, bytes proof);
+    event ProofVerified(bytes indexed imageData, bytes proof);
 
     constructor(address _verifier, bytes32 _imageTransformVKey) {
         verifier = _verifier;
@@ -22,20 +22,20 @@ contract ImageVerifier {
     }
 
     /// @notice Verifies a proof of image transformation
-    /// @param _publicValues The encoded public values (image id)
+    /// @param _publicValues The encoded public values (image data)
     /// @param _proofBytes The encoded proof
-    /// @return id The image id that was transformed
+    /// @return imageData The PNG image data that was transformed
     function verifyImageTransformProof(
         bytes calldata _publicValues,
         bytes calldata _proofBytes
-    ) public returns (string memory id) {
+    ) public returns (bytes memory imageData) {
         ISP1Verifier(verifier).verifyProof(
             imageTransformVKey,
             _publicValues,
             _proofBytes
         );
 
-        id = abi.decode(_publicValues, (string));
-        emit ProofVerified(id, _proofBytes);
+        imageData = _publicValues;
+        emit ProofVerified(imageData, _proofBytes);
     }
 } 

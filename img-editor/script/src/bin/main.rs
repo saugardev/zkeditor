@@ -118,22 +118,27 @@ fn main() {
                     let (output, _) = client.execute(IMG_EDITOR_ELF, &stdin).run().unwrap();
                     let ImageOutput { final_image, .. } = bincode::deserialize(output.as_slice()).unwrap();
                     
-                    // Save proof and verification key to files
-                    let proof_hex = hex::encode(proof.bytes());
-                    let vk_hex = vk.bytes32().to_string();
+                    // Get public values and proof bytes for Solidity verification
+                    let public_values = proof.public_values.as_slice();
+                    let solidity_proof = proof.bytes();
                     
-                    fs::write("proof.hex", &proof_hex)
+                    // Save proof components
+                    fs::write("proof.bin", &solidity_proof)
                         .expect("Failed to write proof file");
-                    fs::write("verification_key.hex", &vk_hex)
+                    fs::write("public_values.bin", public_values)
+                        .expect("Failed to write public values file");
+                    fs::write("verification_key.bin", vk.bytes32().as_bytes())
                         .expect("Failed to write verification key file");
                     
-                    println!("Proof saved to proof.hex");
-                    println!("Verification key saved to verification_key.hex");
+                    println!("Proof components saved:");
+                    println!("- Proof: 0x{}", hex::encode(&solidity_proof));
+                    println!("- Public values: 0x{}", hex::encode(public_values));
+                    println!("- Verification key: {}", vk.bytes32());
                     
                     ImageProofOutput {
                         transformed_image: final_image,
-                        proof: Some(proof_hex),
-                        verification_key: Some(vk_hex),
+                        proof: Some(hex::encode(solidity_proof)),
+                        verification_key: Some(vk.bytes32().to_string()),
                         success: true,
                         message: "Proof generated and verified successfully".to_string(),
                     }
