@@ -5,6 +5,9 @@ use img_editor_lib::{ImageInput, Layer, ImageProofPublicValues};
 use sp1_zkvm::{io, syscalls};
 use image;
 use alloy_sol_types::{SolType, private::FixedBytes};
+use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
+use sha3::{Digest, Keccak256};
+use hex;
 
 fn hash_image(image_data: &[u8]) -> [u8; 32] {
     let mut state = [0x6a09e667u32, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 
@@ -85,8 +88,72 @@ fn hash_image(image_data: &[u8]) -> [u8; 32] {
     result
 }
 
+fn verify_ethereum_signature(msg: &[u8], signature: &[u8], public_key: &[u8]) -> Option<[u8; 20]> {
+    let sig_bytes = signature;
+    if sig_bytes.len() != 65 {
+        println!("Invalid signature length");
+        return None;
+    }
+
+    // Split signature into r, s and v
+    let r_s = &sig_bytes[..64];
+    let v = sig_bytes[64];
+    
+    // Create recoverable signature
+    let recovery_id = match RecoveryId::from_byte(v - 27) {
+        Some(id) => id,
+        None => {
+            println!("Invalid recovery ID");
+            return None;
+        }
+    };
+    let signature = match Signature::from_slice(r_s) {
+        Ok(sig) => sig,
+        Err(e) => {
+            println!("Invalid signature format: {:?}", e);
+            return None;
+        }
+    };
+
+    // Create the message hash - using the hex string of the hash
+    let hex_msg = hex::encode(msg);
+    let mut hasher = Keccak256::new();
+    hasher.update(format!("\x19Ethereum Signed Message:\n{}", hex_msg.len()));
+    hasher.update(hex_msg.as_bytes());
+    let message = hasher.finalize();
+    println!("Prefixed hash: 0x{}", hex::encode(&message));
+
+    // Recover public key
+    let verifying_key = match VerifyingKey::recover_from_prehash(
+        &message,
+        &signature,
+        recovery_id
+    ) {
+        Ok(key) => key,
+        Err(e) => {
+            println!("Failed to recover key: {:?}", e);
+            return None;
+        }
+    };
+
+    // Get Ethereum address from public key
+    let mut hasher = Keccak256::new();
+    hasher.update(&verifying_key.to_encoded_point(false).as_bytes()[1..]);
+    let hash = hasher.finalize();
+    
+    let mut address = [0u8; 20];
+    address.copy_from_slice(&hash[12..32]);
+    println!("Recovered address: 0x{}", hex::encode(&address));
+    println!("Expected address: 0x{}", hex::encode(public_key));
+
+    if address == public_key {
+        Some(address)
+    } else {
+        None
+    }
+}
+
 pub fn main() {
-    // Read the input (private)
     let input: ImageInput = io::read();
     
     let original_image_hash = hash_image(&input.image_data);
@@ -104,15 +171,18 @@ pub fn main() {
 
     let transformed_image_hash = hash_image(&final_image);
     
-    // Initialize these variables before the if block
     let mut public_key_bytes = [0u8; 32];
     let mut has_signature = false;
 
     if let Some(sig_data) = &input.signature_data {
-        println!("Signature length: {}", sig_data.signature.len());
-        println!("Ethereum address length: {}", sig_data.public_key.len());
-        public_key_bytes[12..].copy_from_slice(&sig_data.public_key);
-        has_signature = true;
+        if let Some(eth_addr) = verify_ethereum_signature(
+            &original_image_hash,
+            &sig_data.signature,
+            &sig_data.public_key
+        ) {
+            public_key_bytes[12..].copy_from_slice(&eth_addr);
+            has_signature = true;
+        }
     } else {
         println!("No signature data provided");
     }

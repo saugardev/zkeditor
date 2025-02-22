@@ -2464,10 +2464,12 @@ name = "img-editor-program"
 version = "0.1.0"
 dependencies = [
  "alloy-sol-types 0.6.4",
+ "hex",
  "image",
  "img-editor-lib",
  "k256",
  "serde",
+ "sha3",
  "sp1-derive",
  "sp1-zkvm",
 ]

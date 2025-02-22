@@ -1424,8 +1424,8 @@
   ],
   "original_image_hash": "0x850f08ea56be458c96e60353e6b4a955e84be7bdc2e6cae21d0a24e32e0335b5",
   "transformed_image_hash": "0xecba64260c9045f83c59a1919261e7f7e61c56954bee3d742a6d0c4f5d2b7d07",
-  "signer_public_key": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "has_signature": false,
+  "signer_public_key": "0x0000000000000000000000006e8cdbe9cb9a90f75fe4d5b2f08b9181b04f4ea9",
+  "has_signature": true,
   "success": true,
   "message": "Image transformed successfully",
   "proof_data": null
