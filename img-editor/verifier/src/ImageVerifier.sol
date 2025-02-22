@@ -14,7 +14,13 @@ contract ImageVerifier {
     bytes32 public imageTransformVKey;
 
     /// @notice Event emitted when a proof is verified
-    event ProofVerified(bytes indexed imageData, bytes proof);
+    event ProofVerified(
+        bytes32 indexed originalImageHash,
+        bytes32 indexed transformedImageHash,
+        bytes32 indexed signerPublicKey,
+        bool hasSignature,
+        bytes proof
+    );
 
     constructor(address _verifier, bytes32 _imageTransformVKey) {
         verifier = _verifier;
@@ -22,21 +28,49 @@ contract ImageVerifier {
     }
 
     /// @notice Verifies a proof of image transformation
-    /// @param _publicValues The encoded public values (image data)
+    /// @param _publicValues The encoded public values
     /// @param _proofBytes The encoded proof
-    /// @return imageData The PNG image data that was transformed
+    /// @return originalImageHash The hash of the original image
+    /// @return transformedImageHash The hash of the transformed image
+    /// @return signerPublicKey The public key of the signer (if any)
+    /// @return hasSignature Whether the image was signed
     function verifyImageTransformProof(
         bytes calldata _publicValues,
         bytes calldata _proofBytes
-    ) public returns (bytes memory imageData) {
+    ) public returns (
+        bytes32 originalImageHash,
+        bytes32 transformedImageHash,
+        bytes32 signerPublicKey,
+        bool hasSignature
+    ) {
+        // Verify the proof
         ISP1Verifier(verifier).verifyProof(
             imageTransformVKey,
             _publicValues,
             _proofBytes
         );
 
-        imageData = _publicValues;
-        emit ProofVerified(imageData, _proofBytes);
+        // Decode the public values
+        // The first 32 bytes are the original image hash
+        // The next 32 bytes are the transformed image hash
+        // The next 32 bytes are the signer public key
+        // The last byte is the has_signature bool
+        require(_publicValues.length >= 97, "Invalid public values length");
+
+        assembly {
+            originalImageHash := calldataload(add(_publicValues.offset, 0))
+            transformedImageHash := calldataload(add(_publicValues.offset, 32))
+            signerPublicKey := calldataload(add(_publicValues.offset, 64))
+            hasSignature := byte(0, calldataload(add(_publicValues.offset, 96)))
+        }
+
+        emit ProofVerified(
+            originalImageHash,
+            transformedImageHash,
+            signerPublicKey,
+            hasSignature,
+            _proofBytes
+        );
     }
 
     /// @notice Decodes SP1 public values into PNG data by removing the 8-byte prefix

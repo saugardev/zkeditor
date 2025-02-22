@@ -85,13 +85,8 @@ export function UploadModal({
       const buffer = await selectedFile.arrayBuffer();
       const contentHash = await hashBuffer(buffer);
 
-      // Create a message containing the content hash and IPFS CID (if available)
-      const message = `Signing image content hash: ${contentHash}${
-        ipfsCid ? `\nIPFS CID: ${ipfsCid}` : ""
-      }`;
-
       const sig = await signMessageAsync({
-        message,
+        message: contentHash,
         account: address,
       });
       setSignature(sig);
