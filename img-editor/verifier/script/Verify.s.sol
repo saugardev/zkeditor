@@ -23,20 +23,15 @@ contract Verify is Script {
         // Read public values from binary file
         bytes memory publicValues = vm.readFileBinary(string.concat(root, "/script/public_values.bin"));
         
-        // Extract PNG data (remove first 8 bytes which are not part of PNG)
-        bytes memory pngData = new bytes(publicValues.length - 8);
-        for(uint i = 8; i < publicValues.length; i++) {
-            pngData[i-8] = publicValues[i];
-        }
-        
-        // Save as PNG in script directory
-        vm.writeFileBinary(string.concat(root, "/script/extracted_image.png"), pngData);
-        console.log("Image extracted to script/extracted_image.png");
-        
         vm.createSelectFork(rpcUrl);
         
-        ImageVerifier verifier = ImageVerifier(0x7F6d8631B7f4d87c914dCF6daB41a3cD7b6a9e47);
+        ImageVerifier verifier = ImageVerifier(0x97c6568c9941e45D4cCCbfBf7Da838470C936930);
         require(verifier.imageTransformVKey() == REAL_VKEY, "Wrong vkey");
+        
+        bytes memory pngData = verifier.decodePublicValues(publicValues);
+        
+        vm.writeFileBinary(string.concat(root, "/script/decoded_image.png"), pngData);
+        console.log("Decoded image saved as decoded_image.png");
         
         address sp1verifier = verifier.verifier();
         console.log("SP1 Verifier address:", sp1verifier);
