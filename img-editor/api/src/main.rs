@@ -2,9 +2,10 @@ use axum::{
     Json,
     routing::{get, post},
     Router,
+    extract::Multipart,
 };
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{ProverClient, SP1Stdin};
+use sp1_sdk::{ProverClient, SP1Stdin, HashableKey};
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
@@ -29,14 +30,43 @@ struct ProofRequest {
     image_data: Vec<u8>,
     id: String,
     transformations: Vec<img_editor_lib::Transformation>,
+    signature_data: Option<img_editor_lib::SignatureData>,
+}
+
+#[derive(Serialize)]
+struct ProofData {
+    proof: String,
+    verification_key: String,
+}
+
+#[derive(Serialize)]
+struct PublicOutput {
+    final_image: Vec<u8>,
+    original_image_hash: Vec<u8>,
+    signer_public_key: Option<Vec<u8>>,
 }
 
 #[derive(Serialize)]
 struct ProofResponse {
     success: bool,
     message: String,
-    proof: Option<String>,
-    id: String,
+    public_output: PublicOutput,
+    proof_data: Option<ProofData>,
+}
+
+impl ProofResponse {
+    fn error(message: impl Into<String>) -> Json<Self> {
+        Json(Self {
+            success: false,
+            message: message.into(),
+            public_output: PublicOutput {
+                final_image: vec![],
+                original_image_hash: vec![],
+                signer_public_key: None,
+            },
+            proof_data: None,
+        })
+    }
 }
 
 #[tokio::main]
@@ -72,7 +102,7 @@ async fn health_check() -> &'static str {
 }
 
 async fn generate_proof(
-    Json(request): Json<ProofRequest>,
+    mut multipart: Multipart,
 ) -> Json<ProofResponse> {
     info!("Received proof request for image with id: {}", request.id);
     info!("Image data size: {} bytes", request.image_data.len());
@@ -80,6 +110,33 @@ async fn generate_proof(
     
     for (i, t) in request.transformations.iter().enumerate() {
         info!("Transformation {}: {:?}", i, t);
+    }
+    // Get the image file from multipart form
+    let mut image_data = Vec::new();
+    let mut request = None;
+
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let name = field.name().unwrap().to_string();
+        
+        match name.as_str() {
+            "image" => {
+                image_data = field.bytes().await.unwrap().to_vec();
+            },
+            "request" => {
+                let json_str = String::from_utf8(field.bytes().await.unwrap().to_vec()).unwrap();
+                request = Some(serde_json::from_str::<ProofRequest>(&json_str).unwrap());
+            },
+            _ => {}
+        }
+    }
+
+    let request = match request {
+        Some(req) => req,
+        None => return ProofResponse::error("Missing request data"),
+    };
+
+    if image_data.is_empty() {
+        return ProofResponse::error("Missing image file");
     }
 
     // Setup the prover client
@@ -98,7 +155,7 @@ async fn generate_proof(
     let input = img_editor_lib::ImageInput {
         image_data: request.image_data,
         transformations: request.transformations,
-        id: request.id.clone(),
+        signature_data: request.signature_data,
     };
 
     // Setup stdin with serialized input

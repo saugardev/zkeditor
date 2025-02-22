@@ -2302,6 +2302,7 @@ name = "img-editor-api"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bincode",
  "dotenv",
  "hex",
  "img-editor-lib",
@@ -2326,6 +2327,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_bytes",
+ "sha2",
  "ttf-parser 0.25.1",
  "wasm-bindgen",
 ]
@@ -2336,7 +2338,9 @@ version = "0.1.0"
 dependencies = [
  "image",
  "img-editor-lib",
+ "k256",
  "serde",
+ "sha2",
  "sp1-derive",
  "sp1-zkvm",
 ]
@@ -2353,6 +2357,7 @@ dependencies = [
  "img-editor-lib",
  "serde",
  "serde_json",
+ "sha2",
  "sp1-build",
  "sp1-sdk",
  "tracing",

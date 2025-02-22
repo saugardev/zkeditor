@@ -1,12 +1,13 @@
 use clap::Parser;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin, HashableKey};
-use img_editor_lib::{ImageInput, ImageOutput, Transformation};
+use img_editor_lib::{ImageInput, ImageOutput, Transformation, SignatureData};
 use std::fs;
 use bincode;
 use std::env;
 use serde_json;
 use serde::{Serialize, Deserialize};
 use hex;
+use sha2::{Sha256, Digest};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const IMG_EDITOR_ELF: &[u8] = include_elf!("img-editor-program");
@@ -26,15 +27,28 @@ struct Args {
 
     #[clap(long)]
     transformations: String,
+
+    #[clap(long)]
+    signature: Option<String>,
+
+    #[clap(long)]
+    public_key: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProofData {
+    proof: String,
+    verification_key: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageProofOutput {
-    transformed_image: Vec<u8>,
-    proof: Option<String>,
-    verification_key: Option<String>,
+    final_image: Vec<u8>,
+    original_image_hash: Vec<u8>,
+    signer_public_key: Option<Vec<u8>>,
     success: bool,
     message: String,
+    proof_data: Option<ProofData>,
 }
 
 fn main() {
@@ -58,14 +72,32 @@ fn main() {
     let transformations: Vec<Transformation> = serde_json::from_str(&args.transformations)
         .expect("Failed to parse transformations");
 
+    // Convert hex strings to bytes if provided and create SignatureData if both are present
+    let signature_data = match (args.signature, args.public_key) {
+        (Some(sig), Some(pk)) => {
+            let signature = hex::decode(sig).expect("Invalid signature hex");
+            let public_key = hex::decode(pk).expect("Invalid public key hex");
+            Some(SignatureData {
+                signature,
+                public_key,
+            })
+        },
+        _ => None,
+    };
+
+    // Calculate original image hash
+    let mut hasher = Sha256::new();
+    hasher.update(&image_data);
+    let original_image_hash = hasher.finalize().to_vec();
+
     // Setup the prover client.
     let client = ProverClient::from_env();
 
-    // Create input with rotate90 transformation
+    // Create input with transformations
     let input = ImageInput {
         image_data,
         transformations,
-        id: "".to_string(),
+        signature_data,
     };
 
     // Setup stdin with serialized input
@@ -75,9 +107,9 @@ fn main() {
     let output = match args.execute {
         true => {
             let (output, report) = client.execute(IMG_EDITOR_ELF, &stdin).run().unwrap();
-            let ImageOutput { final_image, .. } = bincode::deserialize(output.as_slice()).unwrap();
+            let ImageOutput { final_image, original_image_hash, signer_public_key } = bincode::deserialize(output.as_slice()).unwrap();
             
-            // Write rotated image
+            // Write transformed image
             let output_path = format!("{}_transformed.png", args.image);
             fs::write(&output_path, &final_image).expect("Failed to write output image");
             println!("Image transformed and saved as {}", output_path);
@@ -91,11 +123,12 @@ fn main() {
             }
 
             ImageProofOutput {
-                transformed_image: final_image,
-                proof: None,
-                verification_key: None,
+                final_image,
+                proof_data: None,
                 success: true,
                 message: "Image transformed successfully".to_string(),
+                original_image_hash,
+                signer_public_key,
             }
         }
         false => {
@@ -104,7 +137,7 @@ fn main() {
                 Ok(proof) => {
                     client.verify(&proof, &vk).expect("failed to verify proof");
                     let (output, _) = client.execute(IMG_EDITOR_ELF, &stdin).run().unwrap();
-                    let ImageOutput { final_image, .. } = bincode::deserialize(output.as_slice()).unwrap();
+                    let ImageOutput { final_image, original_image_hash, signer_public_key } = bincode::deserialize(output.as_slice()).unwrap();
                     
                     // Get public values and proof bytes for Solidity verification
                     let public_values = proof.public_values.as_slice();
@@ -129,14 +162,17 @@ fn main() {
                         verification_key: Some(vk.bytes32().to_string()),
                         success: true,
                         message: "Proof generated and verified successfully".to_string(),
+                        original_image_hash,
+                        signer_public_key,
                     }
                 }
                 Err(e) => ImageProofOutput {
-                    transformed_image: vec![],
-                    proof: None,
-                    verification_key: None,
+                    final_image: vec![],
+                    proof_data: None,
                     success: false,
                     message: format!("Failed to generate proof: {}", e),
+                    original_image_hash,
+                    signer_public_key: None,
                 }
             }
         }

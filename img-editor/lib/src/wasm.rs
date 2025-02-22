@@ -38,16 +38,4 @@ impl WasmImageProject {
         self.0.add_empty_layer(width, height)
             .map_err(|e| JsValue::from_str(&e))
     }
-
-    #[wasm_bindgen]
-    pub fn process_with_proof(&mut self, input: &JsValue) -> Result<JsValue, JsValue> {
-        let input: ImageInput = serde_wasm_bindgen::from_value(input.clone())
-            .map_err(|e| JsValue::from_str(&format!("Invalid input: {}", e)))?;
-        
-        let output = self.0.process_with_proof(&input)
-            .map_err(|e| JsValue::from_str(&e))?;
-        
-        serde_wasm_bindgen::to_value(&output)
-            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
-    }
 }
