@@ -1422,8 +1422,8 @@
     96,
     130
   ],
-  "original_image_hash": "0x86f08a5ee0280c7fc8a07d201f079595caa86789f838adcd3c3fa3a6a986e390",
-  "transformed_image_hash": "0x3131e77bf9612b135f91c63edb1c7ab412826cfca4fd2e1bc4dea9b74c0cfc87",
+  "original_image_hash": "0x850f08ea56be458c96e60353e6b4a955e84be7bdc2e6cae21d0a24e32e0335b5",
+  "transformed_image_hash": "0xecba64260c9045f83c59a1919261e7f7e61c56954bee3d742a6d0c4f5d2b7d07",
   "signer_public_key": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "has_signature": false,
   "success": true,

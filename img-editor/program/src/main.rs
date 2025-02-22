@@ -1,10 +1,3 @@
-//! A simple program that takes a number `n` as input, and writes the `n-1`th and `n`th fibonacci
-//! number as an output.
-
-// These two lines are necessary for the program to properly compile.
-//
-// Under the hood, we wrap your main function with some extra code so that it behaves properly
-// inside the zkVM.
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
@@ -14,32 +7,80 @@ use image;
 use alloy_sol_types::{SolType, private::FixedBytes};
 
 fn hash_image(image_data: &[u8]) -> [u8; 32] {
-    // Use SP1's SHA-256 precompile
-    let mut state = [0u32; 8];
-    let mut block = [0u32; 64];
-    
-    // Process each 64-byte block
-    for chunk in image_data.chunks(64) {
-        // Convert bytes to words
-        for (i, word) in chunk.chunks(4).enumerate() {
-            let mut value = 0u32;
-            for (j, &byte) in word.iter().enumerate() {
-                value |= (byte as u32) << (24 - j * 8);
-            }
-            block[i] = value;
-        }
+    let mut state = [0x6a09e667u32, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 
+                    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+
+    // Process data in 64-byte blocks
+    let mut i = 0;
+    while i + 64 <= image_data.len() {
+        let mut w = [0u32; 64];
         
-        // Use precompile for SHA-256 operations
-        unsafe {
-            syscalls::syscall_sha256_extend(&mut block);
-            syscalls::syscall_sha256_compress(&mut block, &mut state);
+        // Convert bytes to words
+        for j in 0..16 {
+            let idx = i + j * 4;
+            w[j] = ((image_data[idx] as u32) << 24)
+                 | ((image_data[idx + 1] as u32) << 16)
+                 | ((image_data[idx + 2] as u32) << 8)
+                 | (image_data[idx + 3] as u32);
         }
+
+        // Extend and compress
+        syscalls::syscall_sha256_extend(&mut w);
+        syscalls::syscall_sha256_compress(&mut w, &mut state);
+        i += 64;
     }
 
-    // Convert state back to bytes and ensure fixed length
+    // Handle remaining bytes and padding
+    let mut final_block = [0u8; 64];
+    let remaining = image_data.len() - i;
+    final_block[..remaining].copy_from_slice(&image_data[i..]);
+    final_block[remaining] = 0x80;
+
+    let mut w = [0u32; 64];
+    if remaining < 56 {
+        // Length fits in this block
+        for j in 0..14 {
+            let idx = j * 4;
+            w[j] = ((final_block[idx] as u32) << 24)
+                 | ((final_block[idx + 1] as u32) << 16)
+                 | ((final_block[idx + 2] as u32) << 8)
+                 | (final_block[idx + 3] as u32);
+        }
+        let len_bits = (image_data.len() as u64) * 8;
+        w[14] = (len_bits >> 32) as u32;
+        w[15] = len_bits as u32;
+
+        syscalls::syscall_sha256_extend(&mut w);
+        syscalls::syscall_sha256_compress(&mut w, &mut state);
+    } else {
+        // Need an additional block for length
+        for j in 0..16 {
+            let idx = j * 4;
+            w[j] = ((final_block[idx] as u32) << 24)
+                 | ((final_block[idx + 1] as u32) << 16)
+                 | ((final_block[idx + 2] as u32) << 8)
+                 | (final_block[idx + 3] as u32);
+        }
+
+        syscalls::syscall_sha256_extend(&mut w);
+        syscalls::syscall_sha256_compress(&mut w, &mut state);
+
+        w = [0u32; 64];
+        let len_bits = (image_data.len() as u64) * 8;
+        w[14] = (len_bits >> 32) as u32;
+        w[15] = len_bits as u32;
+
+        syscalls::syscall_sha256_extend(&mut w);
+        syscalls::syscall_sha256_compress(&mut w, &mut state);
+    }
+
+    // Convert state to bytes
     let mut result = [0u8; 32];
-    for (i, word) in state.iter().enumerate() {
-        result[i*4..(i+1)*4].copy_from_slice(&word.to_be_bytes());
+    for i in 0..8 {
+        result[i*4] = (state[i] >> 24) as u8;
+        result[i*4 + 1] = (state[i] >> 16) as u8;
+        result[i*4 + 2] = (state[i] >> 8) as u8;
+        result[i*4 + 3] = state[i] as u8;
     }
     result
 }
