@@ -2,13 +2,13 @@ use axum::{
     Json,
     routing::{get, post},
     Router,
+    extract::Multipart,
 };
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{ProverClient, SP1Stdin};
+use sp1_sdk::{ProverClient, SP1Stdin, HashableKey};
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
-use reqwest;
 
 fn load_elf() -> Vec<u8> {
     let target_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -21,17 +21,44 @@ fn load_elf() -> Vec<u8> {
 
 #[derive(Deserialize)]
 struct ProofRequest {
-    asset_uri: String,
-    id: String,
     transformations: Vec<img_editor_lib::Transformation>,
+    signature_data: Option<img_editor_lib::SignatureData>,
+}
+
+#[derive(Serialize)]
+struct ProofData {
+    proof: String,
+    verification_key: String,
+}
+
+#[derive(Serialize)]
+struct PublicOutput {
+    final_image: Vec<u8>,
+    original_image_hash: Vec<u8>,
+    signer_public_key: Option<Vec<u8>>,
 }
 
 #[derive(Serialize)]
 struct ProofResponse {
     success: bool,
     message: String,
-    proof: Option<String>,
-    id: String,
+    public_output: PublicOutput,
+    proof_data: Option<ProofData>,
+}
+
+impl ProofResponse {
+    fn error(message: impl Into<String>) -> Json<Self> {
+        Json(Self {
+            success: false,
+            message: message.into(),
+            public_output: PublicOutput {
+                final_image: vec![],
+                original_image_hash: vec![],
+                signer_public_key: None,
+            },
+            proof_data: None,
+        })
+    }
 }
 
 #[tokio::main]
@@ -58,20 +85,35 @@ async fn health_check() -> &'static str {
 }
 
 async fn generate_proof(
-    Json(request): Json<ProofRequest>,
+    mut multipart: Multipart,
 ) -> Json<ProofResponse> {
-    // Fetch image from URI
-    let image_data = match reqwest::get(&request.asset_uri).await {
-        Ok(response) => response.bytes().await.unwrap().to_vec(),
-        Err(e) => {
-            return Json(ProofResponse {
-                success: false,
-                message: format!("Failed to fetch image: {}", e),
-                proof: None,
-                id: request.id,
-            });
+    // Get the image file from multipart form
+    let mut image_data = Vec::new();
+    let mut request = None;
+
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let name = field.name().unwrap().to_string();
+        
+        match name.as_str() {
+            "image" => {
+                image_data = field.bytes().await.unwrap().to_vec();
+            },
+            "request" => {
+                let json_str = String::from_utf8(field.bytes().await.unwrap().to_vec()).unwrap();
+                request = Some(serde_json::from_str::<ProofRequest>(&json_str).unwrap());
+            },
+            _ => {}
         }
+    }
+
+    let request = match request {
+        Some(req) => req,
+        None => return ProofResponse::error("Missing request data"),
     };
+
+    if image_data.is_empty() {
+        return ProofResponse::error("Missing image file");
+    }
 
     // Setup the prover client
     let client = ProverClient::from_env();
@@ -84,7 +126,7 @@ async fn generate_proof(
     let input = img_editor_lib::ImageInput {
         image_data,
         transformations: request.transformations,
-        id: request.id.clone(),
+        signature_data: request.signature_data,
     };
 
     // Setup stdin with serialized input
@@ -95,26 +137,26 @@ async fn generate_proof(
     match client.prove(&pk, &stdin).run() {
         Ok(proof) => {
             if let Err(e) = client.verify(&proof, &vk) {
-                return Json(ProofResponse {
-                    success: false,
-                    message: format!("Proof verification failed: {}", e),
-                    proof: None,
-                    id: request.id,
-                });
+                return ProofResponse::error(format!("Proof verification failed: {}", e));
             }
+
+            let output = client.execute(&elf_data, &stdin).run().unwrap().0;
+            let output: img_editor_lib::ImageOutput = bincode::deserialize(output.as_slice()).unwrap();
 
             Json(ProofResponse {
                 success: true,
                 message: "Proof generated and verified successfully".to_string(),
-                proof: Some(hex::encode(proof.bytes())),
-                id: request.id,
+                public_output: PublicOutput {
+                    final_image: output.final_image,
+                    original_image_hash: output.original_image_hash,
+                    signer_public_key: output.signer_public_key,
+                },
+                proof_data: Some(ProofData {
+                    proof: hex::encode(proof.bytes()),
+                    verification_key: vk.bytes32(),
+                }),
             })
         }
-        Err(e) => Json(ProofResponse {
-            success: false,
-            message: format!("Failed to generate proof: {}", e),
-            proof: None,
-            id: request.id,
-        }),
+        Err(e) => ProofResponse::error(format!("Failed to generate proof: {}", e)),
     }
 }

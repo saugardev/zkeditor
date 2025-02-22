@@ -22,3 +22,4 @@ ttf-parser = { version = "0.25", features = ["std"] }
 getrandom = { version = "0.1", features = ["dummy"] }
 serde_bytes = "0.11"
 rusttype = "0.9"
+sha2 = { version = "0.10", default-features = false }
