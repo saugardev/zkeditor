@@ -43,26 +43,14 @@ contract ImageVerifier {
         bytes32 signerPublicKey,
         bool hasSignature
     ) {
-        // Verify the proof
         ISP1Verifier(verifier).verifyProof(
             imageTransformVKey,
             _publicValues,
             _proofBytes
         );
 
-        // Decode the public values
-        // The first 32 bytes are the original image hash
-        // The next 32 bytes are the transformed image hash
-        // The next 32 bytes are the signer public key
-        // The last byte is the has_signature bool
-        require(_publicValues.length >= 97, "Invalid public values length");
-
-        assembly {
-            originalImageHash := calldataload(add(_publicValues.offset, 0))
-            transformedImageHash := calldataload(add(_publicValues.offset, 32))
-            signerPublicKey := calldataload(add(_publicValues.offset, 64))
-            hasSignature := byte(0, calldataload(add(_publicValues.offset, 96)))
-        }
+        (originalImageHash, transformedImageHash, signerPublicKey, hasSignature) = 
+            abi.decode(_publicValues, (bytes32, bytes32, bytes32, bool));
 
         emit ProofVerified(
             originalImageHash,

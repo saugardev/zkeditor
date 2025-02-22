@@ -25,13 +25,8 @@ contract Verify is Script {
         
         vm.createSelectFork(rpcUrl);
         
-        ImageVerifier verifier = ImageVerifier(0x97c6568c9941e45D4cCCbfBf7Da838470C936930);
+        ImageVerifier verifier = ImageVerifier(0x4774679E67637c9db1A6275180be003f25609C51);
         require(verifier.imageTransformVKey() == REAL_VKEY, "Wrong vkey");
-        
-        bytes memory pngData = verifier.decodePublicValues(publicValues);
-        
-        vm.writeFileBinary(string.concat(root, "/script/decoded_image.png"), pngData);
-        console.log("Decoded image saved as decoded_image.png");
         
         address sp1verifier = verifier.verifier();
         console.log("SP1 Verifier address:", sp1verifier);
@@ -46,13 +41,15 @@ contract Verify is Script {
         console.log("Proof first 4 bytes:", vm.toString(bytes4(proofData)));
 
         vm.startBroadcast(deployerPrivateKey);
-        bytes memory returnedData = verifier.verifyImageTransformProof(
+        (bytes32 originalImageHash, bytes32 transformedImageHash, bytes32 signerPublicKey, bool hasSignature) = verifier.verifyImageTransformProof(
             publicValues,
             proofData
         );
         vm.stopBroadcast();
         
-        // Since we're reading raw bytes now, we need to decode the returnedId to match the format
-        require(keccak256(returnedData) == keccak256(publicValues), "Verification failed");
+        console.log("Original image hash:", vm.toString(originalImageHash));
+        console.log("Transformed image hash:", vm.toString(transformedImageHash));
+        console.log("Signer public key:", vm.toString(signerPublicKey));
+        console.log("Has signature:", hasSignature);
     }
 } 
