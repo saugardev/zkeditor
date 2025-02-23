@@ -2426,10 +2426,12 @@ dependencies = [
 name = "img-editor-api"
 version = "0.1.0"
 dependencies = [
+ "alloy-sol-types 0.6.4",
  "axum",
  "bincode",
  "dotenv",
  "hex",
+ "image",
  "img-editor-lib",
  "reqwest 0.11.27",
  "serde",
