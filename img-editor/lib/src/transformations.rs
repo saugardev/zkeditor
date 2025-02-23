@@ -71,6 +71,7 @@ pub struct ImageInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImageOutput {
     pub final_image: Vec<u8>,
-    pub original_image_hash: Vec<u8>,
-    pub signer_public_key: Option<Vec<u8>>,
+    pub original_image_hash: [u8; 32],
+    pub transformed_image_hash: [u8; 32],
+    pub signer_public_key: Option<[u8; 32]>,
 }

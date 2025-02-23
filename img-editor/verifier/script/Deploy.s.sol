@@ -9,7 +9,7 @@ import {SP1Verifier} from "@sp1-contracts/v4.0.0-rc.3/SP1VerifierGroth16.sol";
 contract Deploy is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        bytes32 vkey = bytes32(0x0098b93fac3c1779fac511286c4a3088a4cacac4c4c239a205be90135eb73e68);
+        bytes32 vkey = bytes32(0x003bea7317440f6a314441219533085c36f8b15ffb0da0d3627b17c46b5f438e);
         
         console.log("Deploying with verification key:", vm.toString(vkey));
         console.log("Deployer address:", vm.addr(deployerPrivateKey));
