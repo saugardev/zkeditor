@@ -30,12 +30,6 @@ fn load_elf() -> Vec<u8> {
         .expect("Failed to read ELF file. Did you run 'cargo prove build' in the program directory?")
 }
 
-#[derive(Deserialize)]
-struct ProofRequest {
-    transformations: Vec<img_editor_lib::Transformation>,
-    signature_data: Option<img_editor_lib::SignatureData>,
-}
-
 #[derive(Serialize)]
 struct ProofData {
     proof: String,
@@ -81,7 +75,7 @@ impl ProofResponse {
     ) -> Response {
         let response = Self {
             success: true,
-            message: "Proof generated and verified successfully".to_string(),
+            message: "Proof generated successfully".to_string(),
             final_image,
             original_image_hash: original_hash,
             transformed_image_hash: transformed_hash,
@@ -290,11 +284,7 @@ async fn generate_proof(mut multipart: Multipart) -> Response {
     info!("Generating Groth16 proof...");
     match client.prove(&pk, &stdin).groth16().run() {
         Ok(proof) => {
-            info!("Groth16 proof generated successfully, verifying...");
-            if let Err(e) = client.verify(&proof, &vk) {
-                error!("Proof verification failed: {}", e);
-                return ProofResponse::error(format!("Proof verification failed: {}", e));
-            }
+            info!("Groth16 proof generated successfully");
 
             // Get and decode public values
             let public_values = proof.public_values.as_slice();
