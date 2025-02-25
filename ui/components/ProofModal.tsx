@@ -1,175 +1,93 @@
 import { useState } from "react";
-import { X, Copy, Check, Loader2 } from "lucide-react";
+import {
+  X,
+  Copy,
+  Check,
+  Loader2,
+  Upload,
+  ExternalLink,
+  Shield,
+  Eye,
+} from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useTabs } from "@/contexts/TabsContext";
+import {
+  uploadBlobToIPFS,
+  uploadProofMetadata,
+  getIPFSGatewayURL,
+} from "@/lib/ipfs-service";
+import { generateProof } from "@/lib/proof-service";
+import { useWriteContract, useAccount } from "wagmi";
+import { verifyProofOnChain, getEtherscanUrl } from "@/lib/blockchain-service";
+import {
+  saveProofToDatabase,
+  updateProofWithTxHash,
+} from "@/lib/database-service";
 import { Transformation } from "@/types/transformations";
 
 interface ProofModalProps {
   isOpen: boolean;
   onClose: () => void;
+  tabId: string;
 }
 
-interface BackendTransformation {
-  Crop?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  Grayscale?: {
-    region: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    } | null;
-  };
-  Rotate90?: null;
-  Rotate180?: null;
-  Rotate270?: null;
-  FlipVertical?: {
-    region: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    } | null;
-  };
-  FlipHorizontal?: {
-    region: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    } | null;
-  };
-  Brighten?: {
-    value: number;
-    region: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    } | null;
-  };
-  Contrast?: {
-    contrast: number;
-    region: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    } | null;
-  };
-  Blur?: {
-    sigma: number;
-    region: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    } | null;
-  };
-  TextOverlay?: {
-    text: string;
-    x: number;
-    y: number;
-    size: number;
-    color: string;
-  };
-}
-
-interface ProofRequest {
-  image_data: number[];
-  id: string;
-  transformations: BackendTransformation[];
-}
-
-interface ProofResponse {
-  success: boolean;
-  message: string;
-  proof: string | null;
-  id: string;
-}
-
-// Helper to convert frontend transformation to backend format
-const mapTransformation = (t: Transformation): BackendTransformation => {
-  const baseRegion = t.params?.region ? {
-    region: {
-      x: Math.round(t.params.region.x),
-      y: Math.round(t.params.region.y),
-      width: Math.round(t.params.region.width),
-      height: Math.round(t.params.region.height),
-    }
-  } : { region: null };
-
-  switch (t.type) {
-    case "Crop":
-      if (!t.params?.region) throw new Error("Crop requires region parameters");
-      return {
-        Crop: {
-          x: Math.round(t.params.region.x),
-          y: Math.round(t.params.region.y),
-          width: Math.round(t.params.region.width),
-          height: Math.round(t.params.region.height),
-        }
-      };
-    case "Brighten":
-      return {
-        Brighten: {
-          value: t.params?.value || 0,
-          ...baseRegion
-        }
-      };
-    case "Contrast":
-      return {
-        Contrast: {
-          contrast: t.params?.contrast || 1,
-          ...baseRegion
-        }
-      };
-    case "Blur":
-      return {
-        Blur: {
-          sigma: t.params?.sigma || 0,
-          ...baseRegion
-        }
-      };
-    case "TextOverlay":
-      if (!t.params?.text) throw new Error("TextOverlay requires text parameter");
-      return {
-        TextOverlay: {
-          text: t.params.text,
-          x: Math.round(t.params.region?.x || 0),
-          y: Math.round(t.params.region?.y || 0),
-          size: Math.round(t.params.size || 24),
-          color: t.params.color || "#ffffff"
-        }
-      };
-    case "Grayscale":
-      return { Grayscale: baseRegion };
-    case "FlipHorizontal":
-      return { FlipHorizontal: baseRegion };
-    case "FlipVertical":
-      return { FlipVertical: baseRegion };
-    case "Rotate90":
-      return { Rotate90: null };
-    case "Rotate180":
-      return { Rotate180: null };
-    case "Rotate270":
-      return { Rotate270: null };
-    default:
-      throw new Error(`Unknown transformation type: ${t.type}`);
-  }
-};
-
-export function ProofModal({ isOpen, onClose }: ProofModalProps) {
+export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [proof, setProof] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<{
+    originalImageHash?: string;
+    transformedImageHash?: string;
+    signerPublicKey?: string;
+    hasSignature?: boolean;
+    txHash?: string;
+  } | null>(null);
+  const [proofData, setProofData] = useState<
+    Record<
+      string,
+      {
+        proof: string | null;
+        publicValues: string | null;
+        finalImage: string | null;
+        ipfsImageUri: string | null;
+        ipfsMetadataUri: string | null;
+      }
+    >
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const { showToast } = useToast();
-  const { tabs, activeTab } = useTabs();
+  const { tabs } = useTabs();
+  const { isConnected } = useAccount();
+
+  // Contract write hook for verification
+  const { writeContractAsync, isPending: isContractWritePending } =
+    useWriteContract();
+
+  const currentTab = tabs.find((tab) => tab.id === tabId);
+  const currentProofData = proofData[tabId] || {
+    proof: null,
+    publicValues: null,
+    finalImage: null,
+    ipfsImageUri: null,
+    ipfsMetadataUri: null,
+  };
+
+  // Helper function to truncate long strings
+  const truncateString = (str: string, maxLength: number = 50) => {
+    if (!str) return "";
+    if (str.length <= maxLength) return str;
+    return `${str.substring(0, maxLength / 2)}...${str.substring(
+      str.length - maxLength / 2
+    )}`;
+  };
+
+  // Helper function to convert array of numbers to image URL
+  const arrayToImageUrl = (imageData: number[]): string => {
+    const uint8Array = new Uint8Array(imageData);
+    const blob = new Blob([uint8Array], { type: "image/jpeg" });
+    return URL.createObjectURL(blob);
+  };
 
   const handleCopy = async (text: string, field: string) => {
     try {
@@ -182,8 +100,7 @@ export function ProofModal({ isOpen, onClose }: ProofModalProps) {
     }
   };
 
-  const generateProof = async () => {
-    const currentTab = tabs[activeTab];
+  const handleGenerateProof = async () => {
     if (!currentTab?.imageUrl) {
       setError("No image selected");
       return;
@@ -192,50 +109,41 @@ export function ProofModal({ isOpen, onClose }: ProofModalProps) {
     try {
       setIsGenerating(true);
       setError(null);
-      setProof(null);
-
-      // Get raw image data
-      const response = await fetch(currentTab.imageUrl);
-      const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const imageData = Array.from(uint8Array);
-
-      // Map transformations to backend format
-      const mappedTransformations = currentTab.transformations
-        .map(mapTransformation)
-        .filter(Boolean);
-
-      const request: ProofRequest = {
-        image_data: imageData,
-        id: currentTab.id,
-        transformations: mappedTransformations,
-      };
-
-      console.log('Sending request with transformations:', mappedTransformations);
-
-      const proofResponse = await fetch('http://localhost:3001/prove', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      setProofData((prev) => ({
+        ...prev,
+        [tabId]: {
+          proof: null,
+          publicValues: null,
+          finalImage: null,
+          ipfsImageUri: null,
+          ipfsMetadataUri: null,
         },
-        body: JSON.stringify(request),
-      });
+      }));
 
-      const data: ProofResponse = await proofResponse.json();
+      // Use the proof service to generate the proof
+      const result = await generateProof(
+        currentTab.imageUrl,
+        currentTab.id,
+        currentTab.transformations
+      );
 
-      if (!proofResponse.ok || !data.success) {
-        throw new Error(data.message || 'Failed to generate proof');
-      }
+      setProofData((prev) => ({
+        ...prev,
+        [tabId]: {
+          proof: result.proof,
+          publicValues: result.publicValues,
+          finalImage: result.finalImageUrl,
+          ipfsImageUri: null,
+          ipfsMetadataUri: null,
+        },
+      }));
 
-      if (data.proof) {
-        setProof(data.proof);
-        showToast(data.message || "Proof generated successfully");
-      } else {
-        throw new Error("No proof received from server");
-      }
+      showToast(result.message);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to generate proof. Please try again.";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to generate proof. Please try again.";
       setError(message);
       showToast("Failed to generate proof");
     } finally {
@@ -243,33 +151,161 @@ export function ProofModal({ isOpen, onClose }: ProofModalProps) {
     }
   };
 
-  if (!isOpen) return null;
+  // Function to publish to IPFS using Pinata
+  const publishToIPFS = async () => {
+    if (
+      !currentProofData.finalImage ||
+      !currentProofData.proof ||
+      !currentProofData.publicValues
+    ) {
+      setError("No proof or image data available to publish");
+      return;
+    }
 
-  const currentTab = tabs[activeTab];
+    try {
+      setIsPublishing(true);
+      setError(null);
+
+      // 1. Upload the transformed image to IPFS
+      const imageBlob = await fetch(currentProofData.finalImage).then((r) =>
+        r.blob()
+      );
+      const fileName = `${currentTab?.name || "transformed-image"}.jpg`;
+
+      // Use the IPFS service to upload the image
+      const ipfsImageUri = await uploadBlobToIPFS(imageBlob, fileName);
+
+      // 2. Create and upload JSON metadata with proof and image URI
+      const ipfsMetadataUri = await uploadProofMetadata({
+        imageCID: ipfsImageUri,
+        proof: currentProofData.proof,
+        publicValues: currentProofData.publicValues,
+        name: currentTab?.name,
+        transformations: currentTab?.transformations,
+      });
+
+      // 3. Update state with IPFS URIs
+      setProofData((prev) => ({
+        ...prev,
+        [tabId]: {
+          ...prev[tabId]!,
+          ipfsImageUri,
+          ipfsMetadataUri,
+        },
+      }));
+
+      // 4. Save the proof information to the database
+      const dbResult = await saveProofToDatabase({
+        imageName: currentTab?.name || "Unnamed Image",
+        proof: currentProofData.proof,
+        publicValues: currentProofData.publicValues,
+        ipfsImageUri,
+        ipfsMetadataUri,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (!dbResult.success) {
+        console.warn("Failed to save proof to database:", dbResult.message);
+      }
+
+      showToast("Successfully published to IPFS");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to publish to IPFS. Please try again.";
+      setError(message);
+      showToast("Failed to publish to IPFS");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // Function to verify the proof on-chain
+  const verifyProof = async () => {
+    if (!currentProofData.proof || !currentProofData.publicValues) {
+      setError("No proof or public values available to verify");
+      return;
+    }
+
+    if (!isConnected) {
+      showToast("Please connect your wallet to verify the proof on-chain");
+      return;
+    }
+
+    if (!currentProofData.ipfsMetadataUri) {
+      showToast("Please publish to IPFS before verifying on-chain");
+      return;
+    }
+
+    try {
+      setIsVerifying(true);
+      setError(null);
+      setVerificationResult(null);
+
+      // Use the blockchain service to verify the proof
+      const result = await verifyProofOnChain(
+        currentProofData.publicValues,
+        currentProofData.proof,
+        writeContractAsync
+      );
+
+      showToast("Verification transaction submitted");
+
+      // Store the transaction hash in the verification result
+      setVerificationResult({
+        txHash: result.txHash,
+      });
+
+      // Update the database record with the transaction hash
+      const updateResult = await updateProofWithTxHash(
+        currentProofData.ipfsMetadataUri,
+        result.txHash
+      );
+
+      if (!updateResult.success) {
+        console.warn(
+          "Failed to update proof with transaction hash:",
+          updateResult.message
+        );
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to verify proof on-chain. Please try again.";
+      setError(message);
+      showToast("Failed to verify proof on-chain");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-neutral-900 rounded-lg p-6 w-[480px] relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-neutral-400 hover:text-white"
-        >
-          <X size={20} />
-        </button>
-
-        <h2 className="text-xl font-semibold mb-6 text-white">Generate Proof</h2>
+      <div className="bg-neutral-900 rounded-lg p-6 w-[520px] relative">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-white">
+            Generate Proof for {currentTab?.name}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-neutral-400 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         <div className="space-y-4">
           {currentTab ? (
             <>
-              <div className="space-y-2">
-                <p className="text-sm text-neutral-400">Image Name</p>
-                <p className="text-white">{currentTab.name}</p>
-              </div>
-
               {currentTab.transformations?.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm text-neutral-400">Applied Transformations</p>
+                  <p className="text-sm text-neutral-400">
+                    Applied Transformations
+                  </p>
                   <div className="bg-neutral-800 rounded p-2 text-sm text-neutral-300">
                     {currentTab.transformations.map((t, i) => (
                       <div key={i} className="flex items-center gap-2">
@@ -277,7 +313,10 @@ export function ProofModal({ isOpen, onClose }: ProofModalProps) {
                         {t.params && (
                           <span className="text-neutral-500">
                             {Object.entries(t.params)
-                              .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+                              .map(
+                                ([key, value]) =>
+                                  `${key}: ${JSON.stringify(value)}`
+                              )
                               .join(", ")}
                           </span>
                         )}
@@ -287,49 +326,244 @@ export function ProofModal({ isOpen, onClose }: ProofModalProps) {
                 </div>
               )}
 
-              {proof && (
+              {currentProofData.finalImage && (
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-400">Transformed Image</p>
+                  <div className="flex justify-center">
+                    <img
+                      src={currentProofData.finalImage}
+                      alt="Transformed image"
+                      className="max-w-full max-h-[200px] rounded-md object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {currentProofData.proof && (
                 <div className="space-y-2">
                   <p className="text-sm text-neutral-400">Generated Proof</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-white break-all flex-1">{proof}</p>
+                    <p className="text-white break-all flex-1">
+                      {truncateString(currentProofData.proof, 80)}
+                    </p>
                     <button
-                      onClick={() => handleCopy(proof, "Proof")}
+                      onClick={() =>
+                        handleCopy(currentProofData.proof!, "Proof")
+                      }
                       className="text-neutral-400 hover:text-white p-1"
                     >
-                      {copiedField === "Proof" ? <Check size={16} /> : <Copy size={16} />}
+                      {copiedField === "Proof" ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
                     </button>
                   </div>
                 </div>
               )}
 
-              {error && (
-                <div className="text-red-500 text-sm">{error}</div>
+              {currentProofData.publicValues && (
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-400">Public Values</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white break-all flex-1">
+                      {truncateString(currentProofData.publicValues, 80)}
+                    </p>
+                    <button
+                      onClick={() =>
+                        handleCopy(
+                          currentProofData.publicValues!,
+                          "Public Values"
+                        )
+                      }
+                      className="text-neutral-400 hover:text-white p-1"
+                    >
+                      {copiedField === "Public Values" ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+                    </button>
+                  </div>
+                </div>
               )}
 
-              <button
-                className={`w-full py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                  isGenerating 
-                    ? "bg-blue-600/50 cursor-not-allowed" 
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-                onClick={generateProof}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  "Generate Proof"
+              {currentProofData.ipfsMetadataUri && (
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-400">IPFS Metadata URI</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() =>
+                        window.open(
+                          getIPFSGatewayURL(currentProofData.ipfsMetadataUri!),
+                          "_blank"
+                        )
+                      }
+                      className="flex-1 py-2 px-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Eye size={16} />
+                      <span>View on IPFS Gateway</span>
+                      <ExternalLink size={16} className="ml-auto" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleCopy(
+                          currentProofData.ipfsMetadataUri!,
+                          "IPFS URI"
+                        )
+                      }
+                      className="text-neutral-400 hover:text-white p-1"
+                    >
+                      {copiedField === "IPFS URI" ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {verificationResult && verificationResult.txHash && (
+                <div className="space-y-2">
+                  <p className="text-sm text-green-400 font-medium">
+                    Verification Transaction Submitted
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() =>
+                        window.open(
+                          getEtherscanUrl(verificationResult.txHash),
+                          "_blank"
+                        )
+                      }
+                      className="flex-1 py-2 px-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Eye size={16} />
+                      <span>View Transaction on Etherscan</span>
+                      <ExternalLink size={16} className="ml-auto" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (verificationResult.txHash) {
+                          handleCopy(
+                            verificationResult.txHash,
+                            "Transaction Hash"
+                          );
+                        }
+                      }}
+                      className="text-neutral-400 hover:text-white p-1"
+                    >
+                      {copiedField === "Transaction Hash" ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {error && <div className="text-red-500 text-sm">{error}</div>}
+
+              <div className="flex gap-2">
+                <button
+                  className={`flex-1 py-2.5 px-4 text-white rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                    isGenerating
+                      ? "bg-blue-600/50 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                  onClick={handleGenerateProof}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Generating...</span>
+                    </>
+                  ) : currentProofData.proof ? (
+                    "Regenerate Proof"
+                  ) : (
+                    "Generate Proof"
+                  )}
+                </button>
+
+                {currentProofData.proof && currentProofData.finalImage && (
+                  <button
+                    className={`flex-1 py-2.5 px-4 text-white rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                      isPublishing
+                        ? "bg-green-600/50 cursor-not-allowed"
+                        : currentProofData.ipfsMetadataUri
+                        ? "bg-green-700 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700"
+                    }`}
+                    onClick={publishToIPFS}
+                    disabled={
+                      isPublishing || !!currentProofData.ipfsMetadataUri
+                    }
+                  >
+                    {isPublishing ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Publishing...</span>
+                      </>
+                    ) : currentProofData.ipfsMetadataUri ? (
+                      <>
+                        <Check size={16} />
+                        <span>Published to IPFS</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={16} />
+                        <span>Publish to IPFS</span>
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+              </div>
+
+              {currentProofData.proof && currentProofData.publicValues && (
+                <div className="mt-2">
+                  <button
+                    className={`w-full py-2.5 px-4 text-white rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                      isVerifying || isContractWritePending
+                        ? "bg-purple-600/50 cursor-not-allowed"
+                        : verificationResult?.txHash
+                        ? "bg-purple-700 cursor-not-allowed"
+                        : "bg-purple-600 hover:bg-purple-700"
+                    }`}
+                    onClick={verifyProof}
+                    disabled={
+                      isVerifying ||
+                      isContractWritePending ||
+                      !!verificationResult?.txHash
+                    }
+                  >
+                    {isVerifying || isContractWritePending ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Verifying on-chain...</span>
+                      </>
+                    ) : verificationResult?.txHash ? (
+                      <>
+                        <Check size={16} />
+                        <span>Proof verified onchain</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shield size={16} />
+                        <span>Verify on Sepolia Network</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </>
           ) : (
-            <p className="text-neutral-400">No image selected</p>
+            <p className="text-neutral-400">Image not found</p>
           )}
         </div>
       </div>
     </div>
   );
-} 
+}

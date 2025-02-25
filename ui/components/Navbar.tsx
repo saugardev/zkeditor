@@ -74,30 +74,33 @@ export function Navbar() {
           label: "New Project",
           action: () => setShowUploadModal(true),
         },
-        {
-          label: "Open...",
-          action: () => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/*";
-            input.onchange = async (e) => {
-              const file = (e.target as HTMLInputElement).files?.[0];
-              if (file) {
-                handleNewProject(file);
-              }
-            };
-            input.click();
-          },
-        },
+        // {
+        //   label: "Open...",
+        //   action: () => {
+        //     const input = document.createElement("input");
+        //     input.type = "file";
+        //     input.accept = "image/*";
+        //     input.onchange = async (e) => {
+        //       const file = (e.target as HTMLInputElement).files?.[0];
+        //       if (file) {
+        //         handleNewProject(file);
+        //       }
+        //     };
+        //     input.click();
+        //   },
+        // },
         { label: "Save", action: () => console.log("Save") },
         { label: "Export", action: () => console.log("Export") },
-        { label: "Generate Proof", action: () => {
-          if (tabs[activeTab]?.imageUrl) {
-            setShowProofModal(true);
-          } else {
-            showToast("No image to generate proof for");
-          }
-        }},
+        {
+          label: "Generate Proof",
+          action: () => {
+            if (tabs[activeTab]?.imageUrl) {
+              setShowProofModal(true);
+            } else {
+              showToast("No image to generate proof for");
+            }
+          },
+        },
       ],
     },
     {
@@ -254,6 +257,7 @@ export function Navbar() {
       <ProofModal
         isOpen={showProofModal}
         onClose={() => setShowProofModal(false)}
+        tabId={tabs[activeTab]?.id || ""}
       />
     </>
   );
