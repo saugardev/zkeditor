@@ -6,4 +6,9 @@ fs_permissions = [
     { access = "read-write", path = "./"},
 ]
 
+# Dependencies
+[dependencies]
+forge-std = { git = "https://github.com/foundry-rs/forge-std.git", default-submodule = true }
+sp1-contracts = { git = "https://github.com/succinctlabs/sp1-contracts.git", default-submodule = true }
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
