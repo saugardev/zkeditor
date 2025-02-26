@@ -11,10 +11,15 @@ const nextConfig: NextConfig = {
     // Webpack 5 doesn't polyfill WebAssembly.instantiateStreaming by default
     config.output = {
       ...config.output,
-      webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
+      webassemblyModuleFilename: "static/wasm/[modulehash].wasm",
     };
 
     return config;
+  },
+
+  // Configure allowed image domains for next/image
+  images: {
+    domains: ["gateway.pinata.cloud"],
   },
 };
 

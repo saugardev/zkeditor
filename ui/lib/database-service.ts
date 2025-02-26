@@ -19,6 +19,20 @@ export interface ProofRecord {
 }
 
 /**
+ * Get the base URL for API calls
+ * @returns The base URL for API calls
+ */
+function getBaseUrl() {
+  // Check if we're running in a browser environment
+  if (typeof window !== "undefined") {
+    // Use the current window location as the base
+    return window.location.origin;
+  }
+  // For server-side rendering, use an empty string (relative URL)
+  return "";
+}
+
+/**
  * Save proof information to the database
  * @param proofData The proof data to save
  * @returns The response from the server
@@ -27,7 +41,8 @@ export async function saveProofToDatabase(
   proofData: ProofRecord
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await fetch("/api/proofs", {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/proofs`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -62,7 +77,8 @@ export async function updateProofWithTxHash(
   txHash: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await fetch("/api/proofs/update-tx", {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/proofs/update-tx`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -87,6 +103,41 @@ export async function updateProofWithTxHash(
 }
 
 /**
+ * Get a single proof by ID from the database
+ * @param id The ID of the proof to retrieve
+ * @returns The proof record if found
+ */
+export async function getProofById(id: number | string): Promise<{
+  success: boolean;
+  data?: ProofRecord;
+  message?: string;
+}> {
+  try {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/proofs/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to retrieve proof: ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error retrieving proof with ID ${id}:`, error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
+}
+
+/**
  * Get all proofs from the database
  * @returns The list of proofs
  */
@@ -96,7 +147,8 @@ export async function getAllProofs(): Promise<{
   message?: string;
 }> {
   try {
-    const response = await fetch("/api/proofs", {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/proofs`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
