@@ -37,6 +37,12 @@ export default function LandingPage() {
                   Benefits
                 </Link>
                 <Link
+                  href="/gallery"
+                  className="text-white hover:text-gray-300"
+                >
+                  Gallery
+                </Link>
+                <Link
                   href="#contact"
                   className="text-white hover:text-gray-300"
                 >
