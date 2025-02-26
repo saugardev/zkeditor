@@ -129,7 +129,7 @@ export async function uploadProofMetadata({
     proof,
     publicValues,
     // transformations: transformations || [],
-    // timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString(),
   };
 
   return uploadJSONToIPFS(metadata, `${name || "proof-metadata"}.json`);

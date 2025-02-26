@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import { NextResponse } from "next/server";
 import sqlite3 from "sqlite3";
 import { open, Database } from "sqlite";
 import path from "path";
@@ -31,18 +31,9 @@ async function initializeDb(): Promise<Database> {
   return db;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  // Only allow POST requests
-  if (req.method !== "POST") {
-    return res
-      .status(405)
-      .json({ success: false, message: "Method not allowed" });
-  }
-
+export async function POST(request: Request) {
   try {
+    const body = await request.json();
     const db = await initializeDb();
 
     const {
@@ -54,14 +45,17 @@ export default async function handler(
       ipfsImageUri,
       ipfsMetadataUri,
       txHash,
-    } = req.body;
+    } = body;
 
     // Validate required fields
     if (!proof || !publicValues || !ipfsMetadataUri || !imageName) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields",
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Missing required fields",
+        },
+        { status: 400 }
+      );
     }
 
     // Insert the proof record
@@ -85,10 +79,13 @@ export default async function handler(
       ]
     );
 
-    return res.status(201).json({
-      success: true,
-      message: "Proof saved successfully",
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Proof saved successfully",
+      },
+      { status: 201 }
+    );
   } catch (error: unknown) {
     console.error("Error saving proof:", error);
 
@@ -97,16 +94,50 @@ export default async function handler(
       error instanceof Error &&
       error.message.includes("UNIQUE constraint failed")
     ) {
-      return res.status(409).json({
-        success: false,
-        message: "A proof with this IPFS metadata URI already exists",
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          message: "A proof with this IPFS metadata URI already exists",
+        },
+        { status: 409 }
+      );
     }
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to save proof",
-      error: error instanceof Error ? error.message : "Unknown error",
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to save proof",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET() {
+  try {
+    const db = await openDb();
+
+    // Get all proofs, ordered by most recent first
+    const proofs = await db.all(`
+      SELECT * FROM proofs 
+      ORDER BY timestamp DESC
+    `);
+
+    return NextResponse.json({
+      success: true,
+      data: proofs,
     });
+  } catch (error: unknown) {
+    console.error("Error retrieving proofs:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to retrieve proofs",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
