@@ -2,6 +2,7 @@
  * Proof Service for generating ZK proofs of image transformations
  */
 import { Transformation } from "@/types/transformations";
+import { getImageOrientation } from "@/hooks/useImageEditor";
 
 // Types for backend communication
 export interface BackendTransformation {
@@ -74,10 +75,18 @@ export interface BackendTransformation {
   };
 }
 
+// Add signature data interface
+export interface SignatureData {
+  signature: string;
+  public_key: string;
+}
+
+// Update ProofRequest to include signature_data
 export interface ProofRequest {
   image_data: number[];
   id: string;
   transformations: BackendTransformation[];
+  signature_data?: SignatureData;
 }
 
 export interface ProofResponse {
@@ -207,46 +216,82 @@ export const arrayToImageUrl = (imageData: number[]): string => {
 export async function generateProof(
   imageUrl: string,
   id: string,
-  transformations: Transformation[]
+  transformations: Transformation[],
+  signatureData?: SignatureData,
+  originalImageUrl?: string
 ): Promise<ProofResult> {
-  // Get raw image data
-  const response = await fetch(imageUrl);
+  // Get raw image data - use original image if available
+  const response = await fetch(originalImageUrl || imageUrl);
   const blob = await response.blob();
-  const arrayBuffer = await blob.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
-  const imageData = Array.from(uint8Array);
-
+  
+  // Check EXIF orientation and add rotation transformation if needed
+  const exifOrientation = await getImageOrientation(new File([blob], 'image.jpg'));
+  const adjustedTransformations = [...transformations];
+  
+  // Add appropriate rotation based on EXIF orientation if not already handled
+  if (exifOrientation >= 5 && exifOrientation <= 8 && 
+      !transformations.some(t => t.type === 'Rotate90' || t.type === 'Rotate180' || t.type === 'Rotate270')) {
+    console.log(`Adding rotation for EXIF orientation: ${exifOrientation}`);
+    adjustedTransformations.unshift({ 
+      type: 'Rotate90', 
+      params: {}, 
+      timestamp: Date.now() 
+    });
+  }
+  
   // Map transformations to backend format
-  const mappedTransformations = transformations
+  const mappedTransformations = adjustedTransformations
     .map(mapTransformation)
     .filter(Boolean);
 
-  const request: ProofRequest = {
-    image_data: imageData,
-    id,
-    transformations: mappedTransformations,
-  };
-
   console.log("Sending request with transformations:", mappedTransformations);
+  if (signatureData) {
+    console.log("Including signature data with public key:", signatureData.public_key);
+  }
 
   // Try to call the actual API first
   let data: ProofResponse;
   try {
+    // Create FormData object
+    const formData = new FormData();
+    
+    // Add the image as a file
+    formData.append('image', blob, 'image.png');
+    
+    // Add the ID
+    formData.append('id', id);
+    
+    // Add transformations as JSON string
+    formData.append('transformations', JSON.stringify(mappedTransformations));
+    
+    // Add signature data if provided
+    if (signatureData) {
+      formData.append('signature', signatureData.signature);
+      formData.append('public_key', signatureData.public_key);
+    }
+    else {
+      console.log("No signature data provided");
+    }
+    
+    console.log("Sending multipart form request to API");
+    
     const proofResponse = await fetch("http://localhost:3001/prove", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
+      body: formData,
     });
 
     if (!proofResponse.ok) {
-      throw new Error("Server returned an error");
+      const errorText = await proofResponse.text();
+      console.error("API error response:", errorText);
+      throw new Error(`Server returned error ${proofResponse.status}: ${errorText}`);
     }
 
     data = await proofResponse.json();
+    console.log("Received successful API response");
   } catch (err) {
-    console.warn("Failed to call actual API, falling back to mock:", err);
+    console.error("API call failed with error:", err);
+    console.warn("Failed to call actual API, falling back to mock");
+    
     // Load mock response as fallback
     const mockResponse = await loadMockResponse();
     if (!mockResponse) {

@@ -23,7 +23,6 @@ import {
   saveProofToDatabase,
   updateProofWithTxHash,
 } from "@/lib/database-service";
-import { Transformation } from "@/types/transformations";
 
 interface ProofModalProps {
   isOpen: boolean;
@@ -163,11 +162,17 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
         },
       }));
 
+      // Get the original image URL from the tab's history
+      const originalImageUrl = currentTab.history[0];
+      console.log("Using original image URL:", originalImageUrl);
+
       // Use the proof service to generate the proof
       const result = await generateProof(
         currentTab.imageUrl,
         currentTab.id,
-        currentTab.transformations
+        currentTab.transformations,
+        undefined, // No signature data
+        originalImageUrl // Pass the original image URL
       );
 
       setProofData((prev) => ({
