@@ -85,3 +85,36 @@ export async function updateProofWithTxHash(
     };
   }
 }
+
+/**
+ * Get all proofs from the database
+ * @returns The list of proofs
+ */
+export async function getAllProofs(): Promise<{
+  success: boolean;
+  data?: ProofRecord[];
+  message?: string;
+}> {
+  try {
+    const response = await fetch("/api/proofs", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to retrieve proofs: ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error retrieving proofs from database:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
+}

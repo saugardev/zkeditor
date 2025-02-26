@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   Copy,
@@ -51,6 +51,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
         finalImage: string | null;
         ipfsImageUri: string | null;
         ipfsMetadataUri: string | null;
+        txHash: string | null;
+        verified: boolean;
       }
     >
   >({});
@@ -64,6 +66,41 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
   const { writeContractAsync, isPending: isContractWritePending } =
     useWriteContract();
 
+  // Function to reset all states
+  const resetState = () => {
+    setError(null);
+    setCopiedField(null);
+    // Only reset these states if they're not already in progress
+    if (!isGenerating) setIsGenerating(false);
+    if (!isPublishing) setIsPublishing(false);
+    if (!isVerifying) setIsVerifying(false);
+    // Don't reset verification result here, as we want to preserve it between modal sessions
+  };
+
+  // Reset states when the modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      // Only reset these states if they're not already in progress
+      if (!isGenerating) {
+        resetState();
+        // Set verification result based on stored proof data
+        if (proofData[tabId]?.txHash) {
+          setVerificationResult({
+            txHash: proofData[tabId].txHash,
+          });
+        } else {
+          setVerificationResult(null);
+        }
+      }
+    }
+  }, [isOpen, tabId, proofData, isGenerating]);
+
+  // Handle modal close with state reset
+  const handleClose = () => {
+    resetState();
+    onClose();
+  };
+
   const currentTab = tabs.find((tab) => tab.id === tabId);
   const currentProofData = proofData[tabId] || {
     proof: null,
@@ -71,6 +108,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
     finalImage: null,
     ipfsImageUri: null,
     ipfsMetadataUri: null,
+    txHash: null,
+    verified: false,
   };
 
   // Helper function to truncate long strings
@@ -109,6 +148,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
     try {
       setIsGenerating(true);
       setError(null);
+      // Reset verification result when generating a new proof
+      setVerificationResult(null);
       setProofData((prev) => ({
         ...prev,
         [tabId]: {
@@ -117,6 +158,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
           finalImage: null,
           ipfsImageUri: null,
           ipfsMetadataUri: null,
+          txHash: null,
+          verified: false,
         },
       }));
 
@@ -135,6 +178,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
           finalImage: result.finalImageUrl,
           ipfsImageUri: null,
           ipfsMetadataUri: null,
+          txHash: null,
+          verified: false,
         },
       }));
 
@@ -165,6 +210,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
     try {
       setIsPublishing(true);
       setError(null);
+      // Reset verification result when publishing to IPFS
+      setVerificationResult(null);
 
       // 1. Upload the transformed image to IPFS
       const imageBlob = await fetch(currentProofData.finalImage).then((r) =>
@@ -191,6 +238,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
           ...prev[tabId]!,
           ipfsImageUri,
           ipfsMetadataUri,
+          txHash: null,
+          verified: false,
         },
       }));
 
@@ -257,6 +306,16 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
         txHash: result.txHash,
       });
 
+      // Store the transaction hash in the proofData state
+      setProofData((prev) => ({
+        ...prev,
+        [tabId]: {
+          ...prev[tabId]!,
+          txHash: result.txHash,
+          verified: true,
+        },
+      }));
+
       // Update the database record with the transaction hash
       const updateResult = await updateProofWithTxHash(
         currentProofData.ipfsMetadataUri,
@@ -291,7 +350,7 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
             Generate Proof for {currentTab?.name}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-neutral-400 hover:text-white"
           >
             <X size={20} />
@@ -424,7 +483,7 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                 </div>
               )}
 
-              {verificationResult && verificationResult.txHash && (
+              {(verificationResult?.txHash || currentProofData.txHash) && (
                 <div className="space-y-2">
                   <p className="text-sm text-green-400 font-medium">
                     Verification Transaction Submitted
@@ -433,7 +492,10 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                     <button
                       onClick={() =>
                         window.open(
-                          getEtherscanUrl(verificationResult.txHash),
+                          getEtherscanUrl(
+                            verificationResult?.txHash ||
+                              currentProofData.txHash!
+                          ),
                           "_blank"
                         )
                       }
@@ -445,11 +507,10 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                     </button>
                     <button
                       onClick={() => {
-                        if (verificationResult.txHash) {
-                          handleCopy(
-                            verificationResult.txHash,
-                            "Transaction Hash"
-                          );
+                        const txHash =
+                          verificationResult?.txHash || currentProofData.txHash;
+                        if (txHash) {
+                          handleCopy(txHash, "Transaction Hash");
                         }
                       }}
                       className="text-neutral-400 hover:text-white p-1"
@@ -482,9 +543,9 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                       <span>Generating...</span>
                     </>
                   ) : currentProofData.proof ? (
-                    "Regenerate Proof"
+                    <>Regenerate Proof</>
                   ) : (
-                    "Generate Proof"
+                    <>Generate Proof</>
                   )}
                 </button>
 
@@ -528,7 +589,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                     className={`w-full py-2.5 px-4 text-white rounded-lg transition-colors flex items-center justify-center gap-2 ${
                       isVerifying || isContractWritePending
                         ? "bg-purple-600/50 cursor-not-allowed"
-                        : verificationResult?.txHash
+                        : currentProofData.verified ||
+                          verificationResult?.txHash
                         ? "bg-purple-700 cursor-not-allowed"
                         : "bg-purple-600 hover:bg-purple-700"
                     }`}
@@ -536,7 +598,9 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                     disabled={
                       isVerifying ||
                       isContractWritePending ||
-                      !!verificationResult?.txHash
+                      currentProofData.verified ||
+                      !!verificationResult?.txHash ||
+                      !currentProofData.ipfsMetadataUri
                     }
                   >
                     {isVerifying || isContractWritePending ? (
@@ -544,7 +608,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                         <Loader2 size={16} className="animate-spin" />
                         <span>Verifying on-chain...</span>
                       </>
-                    ) : verificationResult?.txHash ? (
+                    ) : currentProofData.verified ||
+                      verificationResult?.txHash ? (
                       <>
                         <Check size={16} />
                         <span>Proof verified onchain</span>
@@ -552,7 +617,7 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
                     ) : (
                       <>
                         <Shield size={16} />
-                        <span>Verify on Sepolia Network</span>
+                        <span>Verify onchain</span>
                       </>
                     )}
                   </button>

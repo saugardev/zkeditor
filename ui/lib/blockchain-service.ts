@@ -6,7 +6,7 @@ import { WriteContractParameters } from "wagmi/actions";
 import { Abi } from "viem";
 
 // Contract addresses
-const IMAGE_VERIFIER_ADDRESS = "0x9b574eF6677c87da28B38291EE2dF679622f8E26";
+const IMAGE_VERIFIER_ADDRESS = "0x1af705a92f2a610f6c99a4dd0421d4dceaff33a8";
 
 // Types for verification
 export interface VerificationResult {
@@ -52,5 +52,5 @@ export async function verifyProofOnChain(
  */
 export function getEtherscanUrl(txHash: string | undefined): string {
   if (!txHash) return "";
-  return `https://sepolia.etherscan.io/tx/${txHash}`;
+  return `https://sepolia.basescan.org//tx/${txHash}`;
 }
