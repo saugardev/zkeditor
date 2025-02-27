@@ -52,6 +52,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
         ipfsMetadataUri: string | null;
         txHash: string | null;
         verified: boolean;
+        originalImageHash: string | null | undefined;
+        transformedImageHash: string | null | undefined;
       }
     >
   >({});
@@ -109,6 +111,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
     ipfsMetadataUri: null,
     txHash: null,
     verified: false,
+    originalImageHash: null,
+    transformedImageHash: null,
   };
 
   // Helper function to truncate long strings
@@ -159,6 +163,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
           ipfsMetadataUri: null,
           txHash: null,
           verified: false,
+          originalImageHash: null,
+          transformedImageHash: null,
         },
       }));
 
@@ -185,6 +191,8 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
           ipfsMetadataUri: null,
           txHash: null,
           verified: false,
+          originalImageHash: result.originalImageHash,
+          transformedImageHash: result.transformedImageHash,
         },
       }));
 
@@ -253,6 +261,9 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
         imageName: currentTab?.name || "Unnamed Image",
         proof: currentProofData.proof,
         publicValues: currentProofData.publicValues,
+        originalImageHash: currentProofData.originalImageHash || undefined,
+        transformedImageHash:
+          currentProofData.transformedImageHash || undefined,
         ipfsImageUri,
         ipfsMetadataUri,
         timestamp: new Date().toISOString(),

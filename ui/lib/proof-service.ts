@@ -109,6 +109,8 @@ export interface ProofResult {
   publicValues: string;
   finalImageUrl: string | null;
   message: string;
+  originalImageHash?: string;
+  transformedImageHash?: string;
 }
 
 /**
@@ -223,22 +225,32 @@ export async function generateProof(
   // Get raw image data - use original image if available
   const response = await fetch(originalImageUrl || imageUrl);
   const blob = await response.blob();
-  
+
   // Check EXIF orientation and add rotation transformation if needed
-  const exifOrientation = await getImageOrientation(new File([blob], 'image.jpg'));
+  const exifOrientation = await getImageOrientation(
+    new File([blob], "image.jpg")
+  );
   const adjustedTransformations = [...transformations];
-  
+
   // Add appropriate rotation based on EXIF orientation if not already handled
-  if (exifOrientation >= 5 && exifOrientation <= 8 && 
-      !transformations.some(t => t.type === 'Rotate90' || t.type === 'Rotate180' || t.type === 'Rotate270')) {
+  if (
+    exifOrientation >= 5 &&
+    exifOrientation <= 8 &&
+    !transformations.some(
+      (t) =>
+        t.type === "Rotate90" ||
+        t.type === "Rotate180" ||
+        t.type === "Rotate270"
+    )
+  ) {
     console.log(`Adding rotation for EXIF orientation: ${exifOrientation}`);
-    adjustedTransformations.unshift({ 
-      type: 'Rotate90', 
-      params: {}, 
-      timestamp: Date.now() 
+    adjustedTransformations.unshift({
+      type: "Rotate90",
+      params: {},
+      timestamp: Date.now(),
     });
   }
-  
+
   // Map transformations to backend format
   const mappedTransformations = adjustedTransformations
     .map(mapTransformation)
@@ -246,7 +258,10 @@ export async function generateProof(
 
   console.log("Sending request with transformations:", mappedTransformations);
   if (signatureData) {
-    console.log("Including signature data with public key:", signatureData.public_key);
+    console.log(
+      "Including signature data with public key:",
+      signatureData.public_key
+    );
   }
 
   // Try to call the actual API first
@@ -254,27 +269,26 @@ export async function generateProof(
   try {
     // Create FormData object
     const formData = new FormData();
-    
+
     // Add the image as a file
-    formData.append('image', blob, 'image.png');
-    
+    formData.append("image", blob, "image.png");
+
     // Add the ID
-    formData.append('id', id);
-    
+    formData.append("id", id);
+
     // Add transformations as JSON string
-    formData.append('transformations', JSON.stringify(mappedTransformations));
-    
+    formData.append("transformations", JSON.stringify(mappedTransformations));
+
     // Add signature data if provided
     if (signatureData) {
-      formData.append('signature', signatureData.signature);
-      formData.append('public_key', signatureData.public_key);
-    }
-    else {
+      formData.append("signature", signatureData.signature);
+      formData.append("public_key", signatureData.public_key);
+    } else {
       console.log("No signature data provided");
     }
-    
+
     console.log("Sending multipart form request to API");
-    
+
     const proofResponse = await fetch("http://localhost:3001/prove", {
       method: "POST",
       body: formData,
@@ -283,7 +297,9 @@ export async function generateProof(
     if (!proofResponse.ok) {
       const errorText = await proofResponse.text();
       console.error("API error response:", errorText);
-      throw new Error(`Server returned error ${proofResponse.status}: ${errorText}`);
+      throw new Error(
+        `Server returned error ${proofResponse.status}: ${errorText}`
+      );
     }
 
     data = await proofResponse.json();
@@ -291,7 +307,7 @@ export async function generateProof(
   } catch (err) {
     console.error("API call failed with error:", err);
     console.warn("Failed to call actual API, falling back to mock");
-    
+
     // Load mock response as fallback
     const mockResponse = await loadMockResponse();
     if (!mockResponse) {
@@ -319,5 +335,7 @@ export async function generateProof(
     publicValues: data.proof_data.public_values,
     finalImageUrl,
     message: data.message || "Proof generated successfully",
+    originalImageHash: data.original_image_hash,
+    transformedImageHash: data.transformed_image_hash,
   };
 }

@@ -6,6 +6,7 @@ import { getIPFSGatewayURL } from "@/lib/ipfs-service";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
+import ImageLineage from "@/components/ImageLineage";
 
 export default function ImageDetailPage() {
   const params = useParams<{ id: string }>();
@@ -168,14 +169,45 @@ export default function ImageDetailPage() {
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-center h-full bg-neutral-700">
-                <p className="text-neutral-400">No image available</p>
+              <div className="flex flex-col items-center justify-center h-full bg-neutral-700">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-24 w-24 text-neutral-500 mb-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className="text-neutral-400 mb-2">Image not available</p>
+                {proof?.originalImageHash && (
+                  <div className="bg-neutral-800 px-3 py-2 rounded-md">
+                    <p className="text-xs text-neutral-300 font-mono">
+                      Original Hash: {proof.originalImageHash}
+                    </p>
+                  </div>
+                )}
+                {proof?.transformedImageHash && (
+                  <div className="bg-neutral-800 px-3 py-2 rounded-md mt-2">
+                    <p className="text-xs text-neutral-300 font-mono">
+                      Transformed Hash: {proof.transformedImageHash}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
 
         <div className="space-y-6">
+          {/* Image Lineage */}
+          {proof && <ImageLineage currentProof={proof} />}
+
           <div className="bg-neutral-800 p-6 rounded-lg shadow-md border border-neutral-700 transition-all duration-300 hover:shadow-xl hover:border-blue-500">
             <h2 className="text-xl font-semibold mb-4 text-white">
               Image Information
