@@ -1,0 +1,15 @@
+{
+  "name": "img-editor-lib",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "img_editor_lib_bg.wasm",
+    "img_editor_lib.js",
+    "img_editor_lib.d.ts"
+  ],
+  "main": "img_editor_lib.js",
+  "types": "img_editor_lib.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
