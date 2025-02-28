@@ -47,7 +47,7 @@ export default function GalleryPage() {
               </div>
             </div>
             <Link
-              href="/"
+              href="/editor"
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-500 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-500/20 font-medium"
             >
               <svg
@@ -64,7 +64,7 @@ export default function GalleryPage() {
                   d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                 />
               </svg>
-              Back to Editor
+              Go to Editor
             </Link>
           </div>
         </div>
