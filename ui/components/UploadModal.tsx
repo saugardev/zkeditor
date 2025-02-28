@@ -152,25 +152,6 @@ export function UploadModal({
                 </button>
               </div>
 
-              {!ipfsCid ? (
-                <button
-                  onClick={uploadToIPFS}
-                  disabled={isUploading}
-                  className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isUploading
-                    ? "Uploading to IPFS..."
-                    : "Upload to IPFS (Optional)"}
-                </button>
-              ) : (
-                <div className="bg-neutral-800 rounded p-3">
-                  <p className="text-sm text-white mb-1">IPFS CID:</p>
-                  <p className="text-sm font-mono break-all text-white">
-                    {ipfsCid}
-                  </p>
-                </div>
-              )}
-
               {!signature ? (
                 <button
                   onClick={handleSign}

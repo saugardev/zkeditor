@@ -114,7 +114,7 @@ async function traverseLineage(
     } else if (currentHash) {
       // No parent found in database, but we have a hash
       lineageNodes.push({
-        proof: createOrphanProof(currentHash, "Unknown Image"),
+        proof: createOrphanProof(currentHash, "Private Image"),
         level,
         isOrphan: true,
       });
@@ -218,7 +218,7 @@ const NodeTitle = ({ node, index }: { node: LineageNode; index: number }) => {
   } else if (node.isOrphan) {
     return (
       <span className="text-gray-400">
-        {node.proof.id ? "Circular Reference" : "Unknown Image"}
+        {node.proof.id ? "Circular Reference" : "Private Image"}
       </span>
     );
   } else {
@@ -281,10 +281,8 @@ export default function ImageLineage({ currentProof }: ImageLineageProps) {
 
   return (
     <div className="bg-neutral-800 p-6 rounded-lg shadow-md border border-neutral-700 transition-all duration-300 hover:shadow-xl hover:border-blue-500 mb-6">
-      <h2 className="text-xl font-semibold mb-4 text-white">Image Lineage</h2>
-
       <div className="relative pl-8">
-        <div className="space-y-8 relative">
+        <div className="space-y-4 relative">
           {/* Vertical line - positioned on the left and only appears between nodes */}
           {lineage.length > 1 && (
             <div className="absolute left-0 top-6 bottom-6 w-0.5 bg-blue-500"></div>
