@@ -1,51 +1,65 @@
 # ZK Image Editor
 
-An image editor that can generate zero-knowledge proofs for transformations using the SP1 zkVM.
+A zero-knowledge proof image editor that verifies image transformations and allows to prove image provenance.
 
-## Requirements
+## How It Works
 
-- Rust 1.82.0
-- Node.js 23.11.0
-- wasm-pack (https://rustwasm.github.io/wasm-pack/installer/)
-- Access to SP1 Prover Network (https://docs.succinct.xyz/docs/sp1/generating-proofs/prover-network)
+The ZK Image Editor creates a ZK proof for image transformations using [Succinct SP1](https://github.com/succinctlabs/sp1), allowing anyone to verify the authenticity and history of edited images. The system:
 
-## Features
+- **Binds transformations to images**: Computes the hashes of both original and transformed images
+- **Provides trustless verification**: Anyone can verify the proof without trusting any participant
+- **Creates immutable provenance chains**: Each verified proof establishes a link between the original image hash and the transformed image hash
 
-- Basic image transformations (rotate, flip, crop, etc.)
-- Region-based transformations
-- Text overlay support
-- Proof generation for all transformations
-- WASM-based frontend for real-time editing
-- Multi-tab support
+When a user edits an image, the browser loads a WASM module compiled from the Rust library, allowing transformations to be rendered in real-time. Once editing is complete, both the original image and the list of transformations are sent to the Prover API.
 
-## WIP Features
-- Undo/redo support
-- Image export
+The API processes the request through an SP1 program that applies each transformation, creates hashes for both original and transformed images, and verifies signatures. The resulting proof can be submitted to an instance of the [ImageVerifier](./img-editor/verifier/src/ImageVerifier.sol) contract for on-chain verification, creating an immutable record of the image's provenance.
+
+For more details, see the [blog post](https://blog.succinct.xyz/tales-from-the-hacker-house-building-an-attested-image-editor/).
 
 ## Project Structure
 
-- `/img-editor/api` - Axum-based REST API for proof generation
-- `/img-editor/program` - SP1 RISC-V program for ZK proofs
-- `/img-editor/lib` - Shared Rust library for image processing and WASM bindings
-- `/ui` - Next.js frontend application
+The project consists of five core components:
 
-## Local Development
+1. **Image Processing Library** (`/img-editor/lib`): Rust library for image transformations, compiled to both WASM (browser) and RISC-V (SP1)
+2. **SP1 Program** (`/img-editor/program`): Core SP1 program that generates proofs for image transformations
+3. **Prover API** (`/img-editor/api`): Axum-based API that handles proof generation requests
+4. **Image Verifier Contract** (`/contracts`): Smart contract for on-chain verification of image transformation proofs
+5. **User Interface** (`/ui`): Next.js application with real-time image editing capabilities
 
-```bash
-# Build WASM module
-cd ui
-pnpm install
-pnpm run build:wasm
+## Building and Running
 
-# Start development server
-pnpm dev
-```
+### Prerequisites
 
-## API Server
+- Rust (latest stable)
+- Node.js (v20+)
+- Access to SP1 Prover Network (https://docs.succinct.xyz/docs/sp1/generating-proofs/prover-network)
 
-```bash
-cd api
-cargo run
-```
+### Quick Start
 
-## Generating Proofs (TODO)
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/saugardev/zkeditor.git
+   cd zkeditor
+   ```
+
+2. **Build and run the API**:
+   ```bash
+   cd img-editor/api
+   cargo run --release
+   ```
+
+3. **Run the UI**:
+   ```bash
+   cd ui
+   pnpm install
+   pnpm run dev
+   ```
+
+4. Open your browser and navigate to `http://localhost:3000`
+
+For detailed build and run instructions for each component, refer to their respective README files:
+- [Image Library README](/img-editor/lib/README.md)
+- [SP1 Program README](/img-editor/program/README.md)
+- [API README](/img-editor/api/README.md)
+- [Verifier Contract README](/img-editor/verifier/README.md)
+- [UI README](/ui/README.md)
