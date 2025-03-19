@@ -168,35 +168,68 @@ export function ProofModal({ isOpen, onClose, tabId }: ProofModalProps) {
         },
       }));
 
-      // Get the original image URL from the tab's history
-      const originalImageUrl = currentTab.history[0];
-      console.log("Using original image URL:", originalImageUrl);
+      // Use the original image blob directly if available
+      if (currentTab.originalImageBlob) {
+        console.log("Using original image blob for proof generation");
 
-      // Use the proof service to generate the proof
-      const result = await generateProof(
-        currentTab.imageUrl,
-        currentTab.id,
-        currentTab.transformations,
-        undefined, // No signature data
-        originalImageUrl // Pass the original image URL
-      );
+        // Create a URL from the original blob for the proof service
+        const originalImageUrl = URL.createObjectURL(
+          currentTab.originalImageBlob
+        );
 
-      setProofData((prev) => ({
-        ...prev,
-        [tabId]: {
-          proof: result.proof,
-          publicValues: result.publicValues,
-          finalImage: result.finalImageUrl,
-          ipfsImageUri: null,
-          ipfsMetadataUri: null,
-          txHash: null,
-          verified: false,
-          originalImageHash: result.originalImageHash,
-          transformedImageHash: result.transformedImageHash,
-        },
-      }));
+        // Use the proof service to generate the proof with the original blob
+        const result = await generateProof(
+          currentTab.originalImageBlob,
+          currentTab.id,
+          currentTab.transformations,
+          undefined // No signature data
+        );
 
-      showToast(result.message);
+        // Clean up the temporary URL
+        URL.revokeObjectURL(originalImageUrl);
+
+        setProofData((prev) => ({
+          ...prev,
+          [tabId]: {
+            proof: result.proof,
+            publicValues: result.publicValues,
+            finalImage: result.finalImageUrl,
+            ipfsImageUri: null,
+            ipfsMetadataUri: null,
+            txHash: null,
+            verified: false,
+            originalImageHash: result.originalImageHash,
+            transformedImageHash: result.transformedImageHash,
+          },
+        }));
+
+        showToast(result.message);
+      } else {
+        // Use the proof service to generate the proof
+        const result = await generateProof(
+          currentTab.originalImageBlob,
+          currentTab.id,
+          currentTab.transformations,
+          undefined // No signature data
+        );
+
+        setProofData((prev) => ({
+          ...prev,
+          [tabId]: {
+            proof: result.proof,
+            publicValues: result.publicValues,
+            finalImage: result.finalImageUrl,
+            ipfsImageUri: null,
+            ipfsMetadataUri: null,
+            txHash: null,
+            verified: false,
+            originalImageHash: result.originalImageHash,
+            transformedImageHash: result.transformedImageHash,
+          },
+        }));
+
+        showToast(result.message);
+      }
     } catch (err) {
       const message =
         err instanceof Error

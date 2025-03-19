@@ -47,10 +47,14 @@ export function Navbar() {
         new Blob([initialImage], { type: "image/png" })
       );
 
+      // Store the original file as a blob
+      const originalImageBlob = file.slice();
+
       addTab({
         id: `tab-${Date.now()}`,
         name: file.name,
         imageUrl,
+        originalImageBlob,
         history: [imageUrl],
         historyIndex: 0,
         transformations: [],
