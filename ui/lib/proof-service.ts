@@ -216,16 +216,11 @@ export const arrayToImageUrl = (imageData: number[]): string => {
  * Generate a ZK proof for image transformations
  */
 export async function generateProof(
-  imageUrl: string,
+  blob: Blob,
   id: string,
   transformations: Transformation[],
-  signatureData?: SignatureData,
-  originalImageUrl?: string
+  signatureData?: SignatureData
 ): Promise<ProofResult> {
-  // Get raw image data - use original image if available
-  const response = await fetch(originalImageUrl || imageUrl);
-  const blob = await response.blob();
-
   // Check EXIF orientation and add rotation transformation if needed
   const exifOrientation = await getImageOrientation(
     new File([blob], "image.jpg")

@@ -6,6 +6,7 @@ interface Tab {
   id: string;
   name: string;
   imageUrl: string | null;
+  originalImageBlob: Blob;
   zoom: number;
   pan: { x: number; y: number };
   isNew?: boolean;
@@ -61,6 +62,7 @@ export function TabsProvider({ children }: { children: React.ReactNode }) {
         history: [tab.imageUrl || ""],
         historyIndex: 0,
         transformations: [],
+        originalImageBlob: tab.originalImageBlob || null,
       },
     ]);
     setActiveTab(newTabIndex);
