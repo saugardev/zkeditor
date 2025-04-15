@@ -2449,6 +2449,8 @@ name = "img-editor-lib"
 version = "0.1.0"
 dependencies = [
  "alloy-sol-types 0.6.4",
+ "base64 0.21.7",
+ "clap",
  "getrandom 0.1.16",
  "image",
  "imageproc",
@@ -2456,6 +2458,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_bytes",
+ "serde_json",
  "sha2",
  "ttf-parser 0.25.1",
  "wasm-bindgen",
