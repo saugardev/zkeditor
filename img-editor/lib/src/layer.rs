@@ -120,7 +120,7 @@ impl Layer {
     }
 
     fn apply_text_overlay(&mut self, params: &TextOverlayParameters) -> Result<DynamicImage, String> {
-        let font_data = include_bytes!("../assets/impact.ttf");
+        let font_data = include_bytes!("./impact.ttf");
         let font = RusttypeFont::try_from_bytes(font_data)
             .ok_or("Failed to load font")?;
 
