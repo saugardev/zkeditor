@@ -3,11 +3,13 @@ use img_editor_lib::{ImageProject, Transformation};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde_json;
 use image::ImageFormat;
+use std::fs;
+use std::path::Path;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about = "Command-line tool for image transformations using base64")]
 struct Args {
-    /// Base64 encoded input image
+    /// Path to input image file
     #[clap(long)]
     image: String,
 
@@ -24,18 +26,10 @@ fn main() -> Result<(), String> {
     // Parse command-line arguments
     let args = Args::parse();
 
-    // Extract base64 data from data URL if present
-    let base64_data = if args.image.starts_with("data:") {
-        // Split by comma and take the second part (the actual base64 data)
-        args.image.split(',').nth(1)
-            .ok_or_else(|| "Invalid data URL format".to_string())?
-    } else {
-        &args.image
-    };
-
-    // Decode base64 input
-    let image_data = BASE64.decode(base64_data)
-        .map_err(|e| format!("Failed to decode base64 input: {}", e))?;
+    // Read image file from path
+    let image_path = Path::new(&args.image);
+    let image_data = fs::read(image_path)
+        .map_err(|e| format!("Failed to read image file '{}': {}", args.image, e))?;
 
     // Parse transformations
     let transformations: Vec<Transformation> = serde_json::from_str(&args.transformations)
@@ -63,12 +57,8 @@ fn main() -> Result<(), String> {
     // Encode output as base64
     let encoded_output = BASE64.encode(&output_data);
     
-    // Format as data URL if input was a data URL
-    let output = if args.image.starts_with("data:") {
-        format!("data:image/{};base64,{}", args.format.to_lowercase(), encoded_output)
-    } else {
-        encoded_output
-    };
+    // Output as data URL
+    let output = format!("data:image/{};base64,{}", args.format.to_lowercase(), encoded_output);
     
     // Print the result to stdout
     println!("{}", output);
